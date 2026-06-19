@@ -168,6 +168,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({ poolId, index, onLoaded,
         <Row>
           <PoolHeader
             name={poolMeta.name}
+            poolAddress={poolId}
             version={poolMeta.version}
             sx={{ margin: '6px', padding: '6px' }}
           />
@@ -207,6 +208,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({ poolId, index, onLoaded,
         <Row>
           <PoolHeader
             name={poolMeta.name}
+            poolAddress={poolId}
             version={poolMeta.version}
             sx={{ margin: '6px', padding: '6px' }}
           />

@@ -5,10 +5,17 @@ import { PoolIcon } from './PoolIcon';
 
 export interface PoolHeaderProps extends BoxProps {
   name: string;
+  poolAddress?: string;
   version: Version;
 }
 
-export const PoolHeader: React.FC<PoolHeaderProps> = ({ name, version, sx, ...props }) => {
+export const PoolHeader: React.FC<PoolHeaderProps> = ({
+  name,
+  poolAddress,
+  version,
+  sx,
+  ...props
+}) => {
   return (
     <Box
       sx={{
@@ -21,7 +28,11 @@ export const PoolHeader: React.FC<PoolHeaderProps> = ({ name, version, sx, ...pr
       }}
       {...props}
     >
-      <PoolIcon name={name} sx={{ height: '30px', width: '30px', borderRadius: '50%' }} />
+      <PoolIcon
+        name={name}
+        poolAddress={poolAddress}
+        sx={{ height: '30px', width: '30px', borderRadius: '50%' }}
+      />
       <Typography variant="h3" sx={{ marginLeft: '6px' }}>
         {`${name} Pool`}
       </Typography>

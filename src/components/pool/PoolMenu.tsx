@@ -44,6 +44,7 @@ export const PoolMenu: React.FC<PoolComponentProps> = ({ poolId }) => {
       >
         <PoolHeader
           name={trackedPool?.name ?? 'Unknown'}
+          poolAddress={poolId}
           version={trackedPool?.version ?? Version.V1}
         />
         <ArrowDropDownIcon sx={{ color: theme.palette.text.secondary }} />
@@ -63,7 +64,7 @@ export const PoolMenu: React.FC<PoolComponentProps> = ({ poolId }) => {
             if (!blockedPools.includes(pool.id))
               return (
                 <MenuItem onClick={() => handleClickMenuItem(pool.id)} key={pool.id}>
-                  <PoolHeader name={pool.name} version={pool.version} />
+                  <PoolHeader name={pool.name} poolAddress={pool.id} version={pool.version} />
                 </MenuItem>
               );
           })}

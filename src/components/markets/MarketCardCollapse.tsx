@@ -74,6 +74,7 @@ export const MarketCardCollapse: React.FC<MarketCardCollapseProps> = ({
         >
           <PoolIcon
             name={pool.metadata.name}
+            poolAddress={pool.id}
             sx={{ margin: '6px', height: '30px', width: '30px' }}
           />
           <Box sx={{ padding: '6px', display: 'flex', flexDirection: 'row', height: '30px' }}>

@@ -17,7 +17,7 @@ export const GoBackHeader: React.FC<GoBackHeaderProps> = ({ poolId }) => {
   return (
     <Section width={SectionSize.FULL} sx={{ padding: '12px' }}>
       <GoBackButton />
-      <PoolHeader name={name} version={version} />
+      <PoolHeader name={name} poolAddress={poolId} version={version} />
     </Section>
   );
 };
