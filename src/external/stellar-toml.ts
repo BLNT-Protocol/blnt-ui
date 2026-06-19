@@ -28,6 +28,14 @@ export async function getTokenMetadataFromTOML(
   } else {
     const assetCode = tokenMetadata.asset.code;
     const assetIssuer = tokenMetadata.asset.issuer;
+
+    if (!assetIssuer) {
+      return {
+        domain: undefined,
+        image: undefined,
+      };
+    }
+
     const assetId = `${assetCode}:${assetIssuer}`;
 
     // Special case for Circle's TOML. Browsers get blocked by CORS policy.
