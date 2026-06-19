@@ -14,25 +14,7 @@ import {
   SubmitArgs,
   Version,
 } from '@blend-capital/blend-sdk';
-import {
-  AlbedoModule,
-  FreighterModule,
-  HanaModule,
-  HotWalletModule,
-  ISupportedWallet,
-  LobstrModule,
-  StellarWalletsKit,
-  WalletNetwork,
-  XBULL_ID,
-  xBullModule,
-} from '@creit.tech/stellar-wallets-kit/index';
-import { LedgerModule } from '@creit.tech/stellar-wallets-kit/modules/ledger.module';
-import {
-  WALLET_CONNECT_ID,
-  WalletConnectAllowedMethods,
-  WalletConnectModule,
-} from '@creit.tech/stellar-wallets-kit/modules/walletconnect.module';
-import { getNetworkDetails as getFreighterNetwork } from '@stellar/freighter-api';
+import { SwkAppDarkTheme } from '@creit.tech/stellar-wallets-kit';
 import {
   Asset,
   Networks,
@@ -48,6 +30,14 @@ import { useQueryClientCacheCleaner } from '../hooks/api';
 import { PoolMeta } from '../hooks/types';
 import { CometClient, CometLiquidityArgs, CometSingleSidedDepositArgs } from '../utils/comet';
 import { useSettings } from './settings';
+
+type WalletKit = typeof import('@creit.tech/stellar-wallets-kit').StellarWalletsKit;
+type WalletKitNetwork = import('@creit.tech/stellar-wallets-kit').Networks;
+type WalletConnectModuleInstance = import('@creit.tech/stellar-wallets-kit').ModuleInterface & {
+  disconnect(): Promise<void>;
+};
+
+const WALLET_CONNECT_ID = 'wallet_connect';
 
 export interface IWalletContext {
   connected: boolean;
@@ -142,27 +132,63 @@ export interface InclusionFee {
   fee: string;
 }
 
-// Lazy-initialized wallet kit singletons. These are only created in the browser
+// Lazy-initialized wallet kit modules. These are only created in the browser
 // to avoid running wallet kit constructors during Next.js static page generation.
-let walletConnectModule: WalletConnectModule | undefined;
-let walletKit: StellarWalletsKit | undefined;
+let walletConnectModule: WalletConnectModuleInstance | undefined;
+let walletKitPromise: Promise<WalletKit> | undefined;
 
-function getWalletKit(): StellarWalletsKit {
-  if (!walletKit) {
+async function getWalletKit(): Promise<WalletKit> {
+  if (!walletKitPromise) {
+    walletKitPromise = initializeWalletKit();
+  }
+  return walletKitPromise;
+}
+
+async function initializeWalletKit(): Promise<WalletKit> {
+  const [
+    { Networks: WalletKitNetworks, StellarWalletsKit },
+    { AlbedoModule },
+    { FreighterModule },
+    { HanaModule },
+    { HotWalletModule },
+    { LedgerModule },
+    { LobstrModule },
+    { WalletConnectModule, WalletConnectTargetChain },
+    { XBULL_ID, xBullModule },
+  ] = await Promise.all([
+    import('@creit.tech/stellar-wallets-kit'),
+    import('@creit.tech/stellar-wallets-kit/modules/albedo'),
+    import('@creit.tech/stellar-wallets-kit/modules/freighter'),
+    import('@creit.tech/stellar-wallets-kit/modules/hana'),
+    import('@creit.tech/stellar-wallets-kit/modules/hotwallet'),
+    import('@creit.tech/stellar-wallets-kit/modules/ledger'),
+    import('@creit.tech/stellar-wallets-kit/modules/lobstr'),
+    import('@creit.tech/stellar-wallets-kit/modules/wallet-connect'),
+    import('@creit.tech/stellar-wallets-kit/modules/xbull'),
+  ]);
+
+  if (!walletConnectModule) {
     walletConnectModule = new WalletConnectModule({
-      url: process.env.NEXT_PUBLIC_WALLET_CONNECT_URL ?? '',
       projectId: 'a0fd1483122937b5cabbe0d85fa9c34e',
-      method: WalletConnectAllowedMethods.SIGN,
-      description: `Blend is a liquidity protocol primitive, enabling the creation of money markets for any use case.`,
-      name: process.env.NEXT_PUBLIC_WALLET_CONNECT_NAME ?? '',
-      icons: [
-        'https://docs.blend.capital/~gitbook/image?url=https%3A%2F%2F3627113658-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252FlsteMPgIzWJ2y9ruiTJy%252Fuploads%252FVsvCoCALpHWAw8LpU12e%252FBlend%2520Logo%25403x.png%3Falt%3Dmedia%26token%3De8c06118-43b7-4ddd-9580-6c0fc47ce971&width=768&dpr=2&quality=100&sign=f4bb7bc2&sv=1',
+      metadata: {
+        name: process.env.NEXT_PUBLIC_WALLET_CONNECT_NAME ?? 'Blend',
+        description: `Blend is a liquidity protocol primitive, enabling the creation of money markets for any use case.`,
+        url: process.env.NEXT_PUBLIC_WALLET_CONNECT_URL ?? 'https://blend.capital',
+        icons: [
+          'https://docs.blend.capital/~gitbook/image?url=https%3A%2F%2F3627113658-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252FlsteMPgIzWJ2y9ruiTJy%252Fuploads%252FVsvCoCALpHWAw8LpU12e%252FBlend%2520Logo%25403x.png%3Falt%3Dmedia%26token%3De8c06118-43b7-4ddd-9580-6c0fc47ce971&width=768&dpr=2&quality=100&sign=f4bb7bc2&sv=1',
+        ],
+      },
+      allowedChains: [
+        process.env.NEXT_PUBLIC_PASSPHRASE === WalletKitNetworks.PUBLIC
+          ? WalletConnectTargetChain.PUBLIC
+          : WalletConnectTargetChain.TESTNET,
       ],
-      network: (process.env.NEXT_PUBLIC_PASSPHRASE ?? WalletNetwork.TESTNET) as WalletNetwork,
     });
 
-    walletKit = new StellarWalletsKit({
-      network: (process.env.NEXT_PUBLIC_PASSPHRASE ?? WalletNetwork.TESTNET) as WalletNetwork,
+    StellarWalletsKit.init({
+      theme: SwkAppDarkTheme,
+      network: (process.env.NEXT_PUBLIC_PASSPHRASE ??
+        WalletKitNetworks.TESTNET) as WalletKitNetwork,
       selectedWalletId: XBULL_ID,
       modules: [
         new xBullModule(),
@@ -176,7 +202,7 @@ function getWalletKit(): StellarWalletsKit {
       ],
     });
   }
-  return walletKit;
+  return StellarWalletsKit;
 }
 
 const WalletContext = React.createContext<IWalletContext | undefined>(undefined);
@@ -215,13 +241,17 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       ) {
         // attempt to auto-connect wallet
         setTimeout(() => {
-          getWalletKit().setWallet(autoConnect);
-          handleSetWalletAddress();
+          getWalletKit()
+            .then((walletKit) => {
+              walletKit.setWallet(autoConnect);
+              handleSetWalletAddress();
+            })
+            .catch((e) => console.error('Unable to initialize wallet kit: ', e));
         }, 750);
       } else {
         // initialize wallet kit
         setTimeout(() => {
-          getWalletKit();
+          getWalletKit().catch((e) => console.error('Unable to initialize wallet kit: ', e));
         }, 750);
       }
     }
@@ -245,7 +275,8 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
    */
   async function handleSetWalletAddress(): Promise<boolean> {
     try {
-      const { address: publicKey } = await getWalletKit().getAddress();
+      const walletKit = await getWalletKit();
+      const { address: publicKey } = await walletKit.fetchAddress();
       if (publicKey === '' || publicKey == undefined) {
         console.error('Unable to load wallet key: ', publicKey);
         return false;
@@ -265,27 +296,36 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
   async function connect(handleSuccess: (success: boolean) => void) {
     try {
       setLoading(true);
-      await getWalletKit().openModal({
-        onWalletSelected: async (option: ISupportedWallet) => {
-          // if creating a new wallet connect session, ensure any existing sessions are cleared first
-          if (option.id === WALLET_CONNECT_ID && walletConnectModule !== undefined) {
-            try {
-              await walletConnectModule.disconnect();
-            } catch (e) {
-              console.error('Error disconnecting existing WalletConnect sessions:', e);
-            }
-          }
-          getWalletKit().setWallet(option.id);
-          let result = await handleSetWalletAddress();
-          setAutoConnect(option.id);
-          handleSuccess(result);
-        },
-      });
+      const walletKit = await getWalletKit();
+      // clear any existing WalletConnect session before establishing a new one,
+      // otherwise the kit accumulates stale sessions for the same address
+      if (walletConnectModule !== undefined) {
+        try {
+          await walletConnectModule.disconnect();
+        } catch (e) {
+          console.error('Error disconnecting existing WalletConnect sessions:', e);
+        }
+      }
+      const { address: publicKey } = await walletKit.authModal();
+      if (publicKey === '' || publicKey == undefined) {
+        console.error('Unable to load wallet key: ', publicKey);
+        handleSuccess(false);
+        setLoading(false);
+        return;
+      }
+      const selectedWalletId = walletKit.selectedModule.productId;
+      setWalletAddress(publicKey);
+      setConnected(true);
+      setAutoConnect(selectedWalletId);
+      handleSuccess(true);
       setLoading(false);
     } catch (e: any) {
       setLoading(false);
       handleSuccess(false);
-      console.error('Unable to connect wallet: ', e);
+      // the kit rejects with { code: -1 } when the user simply closes the modal
+      if (e?.code !== -1) {
+        console.error('Unable to connect wallet: ', e);
+      }
     }
   }
 
@@ -309,7 +349,8 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       }
     }
     try {
-      await getWalletKit().disconnect();
+      const walletKit = await getWalletKit();
+      await walletKit.disconnect();
     } catch (e) {
       console.error('Error disconnecting wallet session from wallet kit:', e);
     }
@@ -329,9 +370,10 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     if (connected) {
       setTxStatus(TxStatus.SIGNING);
       try {
-        let { signedTxXdr } = await getWalletKit().signTransaction(xdr, {
+        const walletKit = await getWalletKit();
+        let { signedTxXdr } = await walletKit.signTransaction(xdr, {
           address: walletAddress,
-          networkPassphrase: network.passphrase as WalletNetwork,
+          networkPassphrase: network.passphrase as WalletKitNetwork,
         });
         setTxStatus(TxStatus.SUBMITTING);
         return signedTxXdr;
@@ -817,7 +859,8 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
 
   async function getNetworkDetails() {
     try {
-      const freighterDetails: any = await getFreighterNetwork();
+      const freighterApi = await import('@stellar/freighter-api');
+      const freighterDetails: any = await freighterApi.getNetworkDetails();
       return {
         rpc: freighterDetails.sorobanRpcUrl,
         passphrase: freighterDetails.networkPassphrase,
