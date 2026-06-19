@@ -1,4 +1,13 @@
 {
-  "contractTokenIcons": [],
+  "contractTokenIcons": [
+    {
+      "contractTokenSymbol": "SolvBTC",
+      "icon": "/icons/tokens/SolvBTC.svg"
+    },
+    {
+      "contractTokenSymbol": "xSolvBTC",
+      "icon": "/icons/tokens/xSolvBTC.svg"
+    }
+  ],
   "poolIcons": []
 }
