@@ -297,7 +297,22 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     try {
       setLoading(true);
       const walletKit = await getWalletKit();
+      // clear any existing WalletConnect session before establishing a new one,
+      // otherwise the kit accumulates stale sessions for the same address
+      if (walletConnectModule !== undefined) {
+        try {
+          await walletConnectModule.disconnect();
+        } catch (e) {
+          console.error('Error disconnecting existing WalletConnect sessions:', e);
+        }
+      }
       const { address: publicKey } = await walletKit.authModal();
+      if (publicKey === '' || publicKey == undefined) {
+        console.error('Unable to load wallet key: ', publicKey);
+        handleSuccess(false);
+        setLoading(false);
+        return;
+      }
       const selectedWalletId = walletKit.selectedModule.productId;
       setWalletAddress(publicKey);
       setConnected(true);
@@ -307,7 +322,10 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     } catch (e: any) {
       setLoading(false);
       handleSuccess(false);
-      console.error('Unable to connect wallet: ', e);
+      // the kit rejects with { code: -1 } when the user simply closes the modal
+      if (e?.code !== -1) {
+        console.error('Unable to connect wallet: ', e);
+      }
     }
   }
 
@@ -842,7 +860,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
   async function getNetworkDetails() {
     try {
       const freighterApi = await import('@stellar/freighter-api');
-      const freighterDetails: any = await freighterApi.default.getNetworkDetails();
+      const freighterDetails: any = await freighterApi.getNetworkDetails();
       return {
         rpc: freighterDetails.sorobanRpcUrl,
         passphrase: freighterDetails.networkPassphrase,
