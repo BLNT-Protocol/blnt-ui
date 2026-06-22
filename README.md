@@ -42,7 +42,7 @@ Each release gets deployed to IPFS automatically. To get the latest release, ple
 
 ## Adding Custom Icons
 
-Custom token and pool icons are configured in `src/external/icon-map.json` and loaded from the `public/icons` folder. Prefer SVG files. Icons are typically rendered at 30x30px in the UI, with a few views using 32x32px, so square artwork that stays legible at those sizes works best.
+Custom token and pool icons are configured in `src/external/icon-map.json` and loaded from the `public/icons` folder. Prefer SVG files. Icons are typically rendered at 30x30px with a border radius of 50% in the UI.
 
 For contract token icons, add the SVG to `public/icons/tokens/` and add an entry to `contractTokenIcons`:
 
@@ -64,7 +64,7 @@ For pool icons, add the SVG to `public/icons/pools/` and add an entry to `poolIc
 
 If a contract token symbol or pool address is not configured, the UI uses the default Soroban token icon or Blend pool icon.
 
-Please create a pull request with the icons and configuration updated, including some details that maintainers can use to verify the icon correct to use.
+Before submitting a PR, follow the Getting Started instructions above to view the change locally to verify the icon looks correct. Once confirmed, please create a pull request with the icons and configuration updated, including some details that maintainers can use to verify the icon is the correct one to use.
 
 ## Contributing
 
