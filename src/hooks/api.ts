@@ -43,7 +43,8 @@ import {
 } from '@tanstack/react-query';
 import { useSettings } from '../contexts';
 import { useWallet } from '../contexts/wallet';
-import { getTokenMetadataFromTOML } from '../external/stellar-toml';
+import { getContractTokenIcon } from '../external/icon-map';
+import { getTokenMetadataFromTOML, TomlMetadata } from '../external/stellar-toml';
 import { getTokenBalance } from '../external/token';
 import { getOraclePrices } from '../utils/stellar_rpc';
 import { ReserveTokenMetadata } from '../utils/token';
@@ -645,7 +646,17 @@ function createTokenMetadataQuery(
       }
       const horizon = new Horizon.Server(network.horizonUrl, network.opts);
       const tokenMetadata = await TokenMetadata.load(network, assetId);
-      const tomlMetadata = await getTokenMetadataFromTOML(horizon, tokenMetadata);
+      // contract only tokens don't have tomls
+      // load image directly from the icon map
+      let tomlMetadata: TomlMetadata;
+      if (tokenMetadata.asset !== undefined) {
+        tomlMetadata = await getTokenMetadataFromTOML(horizon, tokenMetadata);
+      } else {
+        tomlMetadata = {
+          domain: undefined,
+          image: getContractTokenIcon(tokenMetadata.symbol),
+        };
+      }
       const reserveTokenMeta: ReserveTokenMetadata = {
         assetId: assetId,
         ...tokenMetadata,

@@ -1,14 +1,15 @@
 import { IconProps } from '@mui/material';
-import React, { useState } from 'react';
+import React from 'react';
+import { getPoolIcon } from '../../external/icon-map';
 import { Icon } from '../common/Icon';
 
 export interface PoolIconProps extends IconProps {
   name: string;
+  poolAddress?: string;
 }
 
-export const PoolIcon: React.FC<PoolIconProps> = ({ name, ...props }) => {
-  const [imgSrc, setImgSrc] = useState<string>(`/icons/pools/${name.toLowerCase()}.svg`);
-  const onError = () => setImgSrc(`/icons/pools/blend.svg`);
+export const PoolIcon: React.FC<PoolIconProps> = ({ name, poolAddress, ...props }) => {
+  const imgSrc = getPoolIcon(poolAddress);
 
-  return <Icon src={imgSrc} alt={`${name}`} onError={onError} {...props} />;
+  return <Icon src={imgSrc} alt={`${name}`} {...props} />;
 };

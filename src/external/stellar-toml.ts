@@ -15,8 +15,8 @@ export async function getTokenMetadataFromTOML(
 ): Promise<TomlMetadata> {
   let stellarToml: any;
   if (!tokenMetadata.asset) {
-    // set soroban token defaults
-    return { image: `/icons/tokens/soroban.svg` };
+    // contract only tokens don't have a toml
+    return { domain: undefined, image: undefined };
   }
 
   if (tokenMetadata.asset.isNative()) {
