@@ -21,7 +21,7 @@ export const NavBar = () => {
       <SectionBase sx={{ width: '50px', margin: '6px' }}>
         <a href="https://blend.capital" target="_blank" rel="noreferrer">
           <IconButton sx={{ width: '79%', height: '79%', margin: '6px' }}>
-            <Image src="/icons/blend_logo.svg" layout="fill" alt="Blend Logo" />
+            <Image src="/icons/blend_logo.svg" fill alt="Blend Logo" />
           </IconButton>
         </a>
       </SectionBase>

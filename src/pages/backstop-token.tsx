@@ -1,7 +1,9 @@
-import { Version } from '@blend-capital/blend-sdk';
+import { BackstopTierV3, Version } from '@blend-capital/blend-sdk';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import { IconButton, Typography, useTheme } from '@mui/material';
+import { Box, IconButton, Typography, useTheme } from '@mui/material';
 import type { NextPage } from 'next';
+import { useRouter } from 'next/router';
+import { Asset } from '@stellar/stellar-sdk';
 import { BackstopExitAnvil } from '../components/backstop/BackstopExitAnvil';
 import { BackstopJoinAnvil } from '../components/backstop/BackstopJoinAnvil';
 import { Divider } from '../components/common/Divider';
@@ -9,29 +11,35 @@ import { GoBackButton } from '../components/common/GoBackButton';
 import { Icon } from '../components/common/Icon';
 import { Row } from '../components/common/Row';
 import { Section, SectionSize } from '../components/common/Section';
+import { Skeleton } from '../components/common/Skeleton';
 import { StackedText } from '../components/common/StackedText';
 import { ToggleButton } from '../components/common/ToggleButton';
 import { ViewType, useSettings } from '../contexts';
-import { useBackstop, useHorizonAccount, useTokenBalance } from '../hooks/api';
+import { useHorizonAccount, useManagedBackstopToken, useTokenBalance } from '../hooks/api';
+import { getTierIcon } from '../utils/backstop';
 import { toBalance } from '../utils/formatter';
 import { BLND_ASSET, USDC_ASSET } from '../utils/token_display';
 
 const BackstopToken: NextPage = () => {
   const theme = useTheme();
-  const { showJoinPool, setShowJoinPool, viewType, network } = useSettings();
-
-  const BLND_CONTRACT_ID = BLND_ASSET.contractId(network.passphrase);
-  const USDC_CONTRACT_ID = USDC_ASSET.contractId(network.passphrase);
-
-  const { data: backstop } = useBackstop(Version.V1);
-  const { data: horizonAccount } = useHorizonAccount();
-  const { data: blndBalanceRes } = useTokenBalance(BLND_CONTRACT_ID, BLND_ASSET, horizonAccount);
-  const { data: usdcBalanceRes } = useTokenBalance(USDC_CONTRACT_ID, USDC_ASSET, horizonAccount);
-  const { data: lpBalanceRes } = useTokenBalance(
-    backstop?.backstopToken?.id ?? '',
-    undefined,
-    horizonAccount
+  const router = useRouter();
+  const { showJoinPool, setShowJoinPool, viewType } = useSettings();
+  const requestedTier = typeof router.query.tier === 'string' ? router.query.tier : undefined;
+  const tier =
+    requestedTier === BackstopTierV3.BlndXlm || requestedTier === BackstopTierV3.BlndUsdc
+      ? requestedTier
+      : undefined;
+  const version = router.query.version === Version.V2 ? Version.V2 : Version.V1;
+  const unsupportedTier = requestedTier !== undefined && tier === undefined;
+  const { blndTokenId, cometPoolId, lpSymbol, pairSymbol, pairTokenId } = useManagedBackstopToken(
+    tier,
+    version
   );
+  const pairAsset = pairSymbol === 'XLM' ? Asset.native() : USDC_ASSET;
+  const { data: horizonAccount } = useHorizonAccount();
+  const { data: blndBalanceRes } = useTokenBalance(blndTokenId, BLND_ASSET, horizonAccount);
+  const { data: usdcBalanceRes } = useTokenBalance(pairTokenId, pairAsset, horizonAccount);
+  const { data: lpBalanceRes } = useTokenBalance(cometPoolId, undefined, horizonAccount);
 
   const blndBalance = blndBalanceRes ?? BigInt(0);
   const usdcBalance = usdcBalanceRes ?? BigInt(0);
@@ -49,15 +57,36 @@ const BackstopToken: NextPage = () => {
     }
   };
 
-  const title = viewType === ViewType.MOBILE ? 'BLND-USDC LP' : '80:20 BLND-USDC Liquidity Pool';
+  const title =
+    viewType === ViewType.MOBILE ? lpSymbol : `80:20 ${lpSymbol.replace(' LP', '')} Liquidity Pool`;
+  const headerIcon = tier === undefined ? '/icons/pageicons/blnd_usdc_pair.svg' : getTierIcon(tier);
+  const lpIcon = tier === undefined ? '/icons/tokens/blndusdclp.svg' : getTierIcon(tier);
+
+  if (!router.isReady) return <Skeleton />;
+
+  if (unsupportedTier) {
+    return (
+      <Row>
+        <Section width={SectionSize.FULL} sx={{ padding: '12px' }}>
+          <GoBackButton />
+          <Box>
+            <Typography variant="h4">This backstop tier is not an LP token.</Typography>
+            <Typography variant="body2" color={theme.palette.text.secondary}>
+              Plain assets can be deposited directly and do not have Comet liquidity to manage.
+            </Typography>
+          </Box>
+        </Section>
+      </Row>
+    );
+  }
 
   return (
     <>
       <Row sx={{ margin: '12px', justifyContent: 'flex-start', alignItems: 'center' }}>
         <GoBackButton sx={{ backgroundColor: theme.palette.background.paper, margin: '12px' }} />
         <Icon
-          src={'/icons/pageicons/blnd_usdc_pair.svg'}
-          alt={`blndusdclp`}
+          src={headerIcon}
+          alt={lpSymbol}
           isCircle={false}
           height={'30px'}
           width={'45px'}
@@ -67,7 +96,7 @@ const BackstopToken: NextPage = () => {
         <IconButton
           onClick={() =>
             window.open(
-              `${process.env.NEXT_PUBLIC_STELLAR_EXPERT_URL}/contract/${backstop?.config?.backstopTkn}`,
+              `${process.env.NEXT_PUBLIC_STELLAR_EXPERT_URL}/contract/${cometPoolId}`,
               '_blank'
             )
           }
@@ -107,11 +136,7 @@ const BackstopToken: NextPage = () => {
             width={SectionSize.FULL}
             sx={{ alignItems: 'center', justifyContent: 'flex-start', padding: '12px' }}
           >
-            <Icon
-              src={'/icons/tokens/blndusdclp.svg'}
-              alt={`lp token icon`}
-              sx={{ marginRight: '12px' }}
-            />
+            <Icon src={lpIcon} alt={`lp token icon`} sx={{ marginRight: '12px' }} />
             <StackedText
               title="Your LP Balance"
               titleColor="inherit"
@@ -128,11 +153,7 @@ const BackstopToken: NextPage = () => {
             width={SectionSize.THIRD}
             sx={{ alignItems: 'center', justifyContent: 'flex-start', padding: '12px' }}
           >
-            <Icon
-              src={'/icons/tokens/blndusdclp.svg'}
-              alt={`lp token icon`}
-              sx={{ marginRight: '12px' }}
-            />
+            <Icon src={lpIcon} alt={`lp token icon`} sx={{ marginRight: '12px' }} />
             <StackedText
               title="Your LP Token Balance"
               titleColor="inherit"
@@ -160,12 +181,16 @@ const BackstopToken: NextPage = () => {
           sx={{ alignItems: 'center', justifyContent: 'flex-start', padding: '12px' }}
         >
           <Icon
-            src={'https://www.centre.io/images/usdc/usdc-icon-86074d9d49.png'}
-            alt={`usdc icon`}
+            src={
+              pairSymbol === 'XLM'
+                ? '/icons/tokens/xlm.svg'
+                : 'https://www.centre.io/images/usdc/usdc-icon-86074d9d49.png'
+            }
+            alt={`${pairSymbol.toLowerCase()} icon`}
             sx={{ marginRight: '12px' }}
           />
           <StackedText
-            title="Your USDC Balance"
+            title={`Your ${pairSymbol} Balance`}
             titleColor="inherit"
             text={toBalance(usdcBalance, 7)}
             textColor="inherit"
@@ -174,7 +199,11 @@ const BackstopToken: NextPage = () => {
         </Section>
       </Row>
 
-      {showJoinPool ? <BackstopJoinAnvil /> : <BackstopExitAnvil />}
+      {showJoinPool ? (
+        <BackstopJoinAnvil key={tier ?? version} tier={tier} version={version} />
+      ) : (
+        <BackstopExitAnvil key={tier ?? version} tier={tier} version={version} />
+      )}
     </>
   );
 };

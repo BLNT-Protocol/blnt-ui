@@ -1,4 +1,3 @@
-import { BackstopPoolEst, BackstopPoolUserEst } from '@blend-capital/blend-sdk';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { Box, useTheme } from '@mui/material';
 import { useSettings, ViewType } from '../../contexts';
@@ -10,6 +9,7 @@ import {
   usePoolMeta,
 } from '../../hooks/api';
 import { toBalance } from '../../utils/formatter';
+import { getBackstopPoolMetrics, getBackstopUserValue } from '../../utils/backstop';
 import { CustomButton } from '../common/CustomButton';
 import { Icon } from '../common/Icon';
 import { LinkBox } from '../common/LinkBox';
@@ -33,13 +33,10 @@ export const BackstopPreviewBar: React.FC<PoolComponentProps> = ({ poolId }) => 
     return <Skeleton />;
   }
 
-  const backstopPoolEst = BackstopPoolEst.build(
-    backstop.backstopToken,
-    backstopPoolData.poolBalance
-  );
+  const backstopPoolEst = getBackstopPoolMetrics(backstop, backstopPoolData);
   const backstopUserPoolEst =
     backstopUserData !== undefined
-      ? BackstopPoolUserEst.build(backstop, backstopPoolData, backstopUserData)
+      ? getBackstopUserValue(backstop, backstopPoolData, backstopUserData)
       : undefined;
 
   const viewTypeRegular = viewType === ViewType.REGULAR;
@@ -119,9 +116,7 @@ export const BackstopPreviewBar: React.FC<PoolComponentProps> = ({ poolId }) => 
             <StackedText
               title="Your Backstop Balance"
               titleColor="inherit"
-              text={
-                backstopUserPoolEst ? `$${toBalance(backstopUserPoolEst.totalSpotValue)}` : '--'
-              }
+              text={backstopUserPoolEst !== undefined ? `$${toBalance(backstopUserPoolEst)}` : '--'}
               textColor="inherit"
               type="large"
             />

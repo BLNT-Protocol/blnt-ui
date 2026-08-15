@@ -1,6 +1,7 @@
-import { BackstopPoolEst, FixedMath, PoolEstimate } from '@blend-capital/blend-sdk';
+import { BackstopPoolV3, FixedMath, PoolEstimate } from '@blend-capital/blend-sdk';
 import { useBackstop, useBackstopPool, usePool, usePoolMeta, usePoolOracle } from '../../hooks/api';
 import { estSingleSidedDeposit } from '../../utils/comet';
+import { getBackstopPoolMetrics } from '../../utils/backstop';
 import { PoolComponentProps } from '../common/PoolComponentProps';
 import { RateDisplay } from '../common/RateDisplay';
 import { StackedText } from '../common/StackedText';
@@ -14,6 +15,7 @@ export const BackstopAPR: React.FC<PoolComponentProps> = ({ poolId }) => {
 
   let estBackstopApr: number | undefined = undefined;
   let backstopEmissionsApr: number | undefined = undefined;
+  const isV3 = backstopPoolData instanceof BackstopPoolV3;
 
   if (
     pool !== undefined &&
@@ -22,20 +24,19 @@ export const BackstopAPR: React.FC<PoolComponentProps> = ({ poolId }) => {
     backstopPoolData !== undefined
   ) {
     const poolEst = PoolEstimate.build(pool.reserves, poolOracle);
-    const backstopPoolEst = BackstopPoolEst.build(
-      backstop.backstopToken,
-      backstopPoolData.poolBalance
-    );
+    const backstopPoolEst = getBackstopPoolMetrics(backstop, backstopPoolData);
     estBackstopApr =
       (FixedMath.toFloat(BigInt(pool.metadata.backstopRate), 7) *
         poolEst.avgBorrowApy *
         poolEst.totalBorrowed) /
       backstopPoolEst.totalSpotValue;
-    backstopEmissionsApr = estSingleSidedDeposit(
-      'blnd',
-      backstop.backstopToken,
-      FixedMath.toFixed(backstopPoolData.emissionPerYearPerBackstopToken(), 7)
-    );
+    if (!isV3) {
+      backstopEmissionsApr = estSingleSidedDeposit(
+        'blnd',
+        backstop.backstopToken,
+        FixedMath.toFixed(backstopPoolData.emissionPerYearPerBackstopToken(), 7)
+      );
+    }
   }
 
   return (
@@ -44,7 +45,7 @@ export const BackstopAPR: React.FC<PoolComponentProps> = ({ poolId }) => {
       text={
         estBackstopApr !== undefined ? (
           <RateDisplay
-            assetSymbol={'BLND-USDC LP'}
+            assetSymbol={isV3 ? 'Backstop capital' : 'BLND-USDC LP'}
             assetRate={estBackstopApr}
             emissionSymbol={'BLND-USDC LP'}
             emissionApr={backstopEmissionsApr}

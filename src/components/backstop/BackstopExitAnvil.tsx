@@ -1,11 +1,11 @@
-import { Version } from '@blend-capital/blend-sdk';
+import { BackstopTierV3, Version } from '@blend-capital/blend-sdk';
 import { Box, Typography, useTheme } from '@mui/material';
-import { rpc } from '@stellar/stellar-sdk';
+import { Asset, rpc } from '@stellar/stellar-sdk';
 import Image from 'next/image';
 import { useMemo, useState } from 'react';
 import { ViewType, useSettings } from '../../contexts';
 import { TxStatus, TxType, useWallet } from '../../contexts/wallet';
-import { useBackstop, useHorizonAccount, useTokenBalance } from '../../hooks/api';
+import { useHorizonAccount, useManagedBackstopToken, useTokenBalance } from '../../hooks/api';
 import { RPC_DEBOUNCE_DELAY, useDebouncedState } from '../../hooks/debounce';
 import { estExitPool } from '../../utils/comet';
 import { toBalance } from '../../utils/formatter';
@@ -25,9 +25,12 @@ import { TxOverview } from '../common/TxOverview';
 import { Value } from '../common/Value';
 import { ValueChange } from '../common/ValueChange';
 
-export const BackstopExitAnvil = () => {
+export const BackstopExitAnvil: React.FC<{ tier?: BackstopTierV3; version?: Version }> = ({
+  tier,
+  version,
+}) => {
   const theme = useTheme();
-  const { viewType, network } = useSettings();
+  const { viewType } = useSettings();
   const {
     walletAddress,
     txStatus,
@@ -38,18 +41,13 @@ export const BackstopExitAnvil = () => {
     txInclusionFee,
   } = useWallet();
 
-  const BLND_ID = BLND_ASSET.contractId(network.passphrase);
-  const USDC_ID = USDC_ASSET.contractId(network.passphrase);
-
-  const { data: backstop } = useBackstop(Version.V1);
+  const { backstopToken, blndTokenId, cometPoolId, lpSymbol, pairSymbol, pairTokenId } =
+    useManagedBackstopToken(tier, version);
+  const pairAsset = pairSymbol === 'XLM' ? Asset.native() : USDC_ASSET;
   const { data: horizonAccount } = useHorizonAccount();
-  const { data: blndBalanceRes } = useTokenBalance(BLND_ID, BLND_ASSET, horizonAccount);
-  const { data: usdcBalanceRes } = useTokenBalance(USDC_ID, USDC_ASSET, horizonAccount);
-  const { data: lpBalanceRes } = useTokenBalance(
-    backstop?.backstopToken.id,
-    undefined,
-    horizonAccount
-  );
+  const { data: blndBalanceRes } = useTokenBalance(blndTokenId, BLND_ASSET, horizonAccount);
+  const { data: usdcBalanceRes } = useTokenBalance(pairTokenId, pairAsset, horizonAccount);
+  const { data: lpBalanceRes } = useTokenBalance(cometPoolId, undefined, horizonAccount);
 
   const [input, setInput] = useState<{ amount: string; slippage: string }>({
     amount: '',
@@ -94,13 +92,13 @@ export const BackstopExitAnvil = () => {
       Add {BLND_ASSET.code} Trustline
     </OpaqueButton>
   );
-  const AddUSDCTrustlineButton = (
+  const AddPairTrustlineButton = (
     <OpaqueButton
-      onClick={async () => createTrustlines([USDC_ASSET])}
+      onClick={async () => createTrustlines([pairAsset])}
       palette={theme.palette.warning}
       sx={{ padding: '6px 24px', margin: '12px auto' }}
     >
-      Add {USDC_ASSET.code} Trustline
+      Add {pairSymbol} Trustline
     </OpaqueButton>
   );
 
@@ -108,13 +106,13 @@ export const BackstopExitAnvil = () => {
   const { isSubmitDisabled, isMaxDisabled, reason, disabledType, isError, extraContent } =
     useMemo(() => {
       const hasBLNDTrustline = !requiresTrustline(horizonAccount, BLND_ASSET);
-      const hasUSDCTrustline = !requiresTrustline(horizonAccount, USDC_ASSET);
+      const hasUSDCTrustline = !requiresTrustline(horizonAccount, pairAsset);
       if (lpBalance === BigInt(0)) {
         return {
           isSubmitDisabled: true,
           isError: true,
           isMaxDisabled: true,
-          reason: 'You do not have any LP tokens for the BLND-USDC pool',
+          reason: `You do not have any LP tokens for the ${lpSymbol} pool`,
           disabledType: 'warning',
         } as SubmitError;
       } else if (!hasBLNDTrustline) {
@@ -131,9 +129,9 @@ export const BackstopExitAnvil = () => {
           isSubmitDisabled: true,
           isError: true,
           isMaxDisabled: true,
-          reason: 'You need a USDC trustline to exit the LP.',
+          reason: `You need a ${pairSymbol} trustline to exit the LP.`,
           disabledType: 'warning',
-          extraContent: AddUSDCTrustlineButton,
+          extraContent: AddPairTrustlineButton,
         } as SubmitError;
       } else if (Number(input.slippage) < 0.1) {
         return {
@@ -154,9 +152,9 @@ export const BackstopExitAnvil = () => {
       } else {
         return getErrorFromSim(input.amount, decimals, loading, simResponse, undefined);
       }
-    }, [input, loadingEstimate, simResponse, lpBalance]);
+    }, [input, loadingEstimate, simResponse, lpBalance, pairAsset, pairSymbol, lpSymbol]);
 
-  if (backstop === undefined) {
+  if (backstopToken === undefined || cometPoolId === '') {
     return <Skeleton />;
   }
 
@@ -176,14 +174,14 @@ export const BackstopExitAnvil = () => {
     setLoadingEstimate(true);
     clearInputResultState();
     const validDecimals = (amount.split('.')[1]?.length ?? 0) <= decimals;
-    if (validDecimals && backstop?.config.backstopTkn && walletAddress) {
+    if (validDecimals && cometPoolId && backstopToken && walletAddress) {
       const inputAsBigInt = scaleInputToBigInt(amount, decimals);
       const slippageAsNum = Number(slippage) / 100;
-      let { blnd, usdc } = estExitPool(backstop.backstopToken, inputAsBigInt, slippageAsNum);
+      let { blnd, usdc } = estExitPool(backstopToken, inputAsBigInt, slippageAsNum);
       setMinBLNDOut(blnd);
       setMinUSDCOut(usdc);
       cometExit(
-        backstop.config.backstopTkn,
+        cometPoolId,
         {
           user: walletAddress,
           poolAmount: inputAsBigInt,
@@ -207,9 +205,9 @@ export const BackstopExitAnvil = () => {
 
   async function handleSubmitExit() {
     const validDecimals = (input.amount.split('.')[1]?.length ?? 0) <= decimals;
-    if (validDecimals && backstop?.config.backstopTkn) {
+    if (validDecimals && cometPoolId) {
       await cometExit(
-        backstop?.config.backstopTkn,
+        cometPoolId,
         {
           user: walletAddress,
           poolAmount: scaleInputToBigInt(input.amount, decimals),
@@ -221,7 +219,8 @@ export const BackstopExitAnvil = () => {
     }
   }
 
-  const inputInUSDC = Number(input.amount) * backstop.backstopToken.lpTokenPrice;
+  const inputInUSDC =
+    pairSymbol === 'USDC' ? Number(input.amount) * backstopToken.lpTokenPrice : undefined;
 
   return (
     <Row>
@@ -263,7 +262,7 @@ export const BackstopExitAnvil = () => {
               }}
             >
               <InputBar
-                symbol={'BLND-USDC LP'}
+                symbol={lpSymbol}
                 value={input.amount}
                 onValueChange={(v) => {
                   handleSetInputAmount(v);
@@ -345,9 +344,13 @@ export const BackstopExitAnvil = () => {
               gap: '12px',
             }}
           >
-            <Typography variant="h5" sx={{ color: theme.palette.text.secondary }}>
-              {`$${toBalance(inputInUSDC)}`}
-            </Typography>
+            {inputInUSDC !== undefined ? (
+              <Typography variant="h5" sx={{ color: theme.palette.text.secondary }}>
+                {`$${toBalance(inputInUSDC)}`}
+              </Typography>
+            ) : (
+              <Box />
+            )}
             <Box
               sx={{
                 display: 'flex',
@@ -375,7 +378,7 @@ export const BackstopExitAnvil = () => {
           <TxOverview>
             <>
               {' '}
-              <Value title="Amount to withdraw" value={`${input.amount ?? '0'} BLND-USDC LP`} />
+              <Value title="Amount to withdraw" value={`${input.amount ?? '0'} ${lpSymbol}`} />
               <Value
                 title={
                   <>
@@ -390,11 +393,11 @@ export const BackstopExitAnvil = () => {
               />
               <ValueChange
                 title="Your LP tokens"
-                curValue={`${toBalance(lpBalance, 7)} BLND-USDC LP`}
+                curValue={`${toBalance(lpBalance, 7)} ${lpSymbol}`}
                 newValue={`${toBalance(
                   lpBalance - BigInt(Math.floor(Number(input.amount) * 1e7)),
                   7
-                )} BLND-USDC LP`}
+                )} ${lpSymbol}`}
               />
               <Value title="Min BLND to withdraw" value={`${toBalance(minBLNDOut)} BLND`} />
               <ValueChange
@@ -405,14 +408,17 @@ export const BackstopExitAnvil = () => {
                   7
                 )} BLND`}
               />
-              <Value title="Min USDC to withdraw" value={`${toBalance(minUSDCOut)} USDC`} />
+              <Value
+                title={`Min ${pairSymbol} to withdraw`}
+                value={`${toBalance(minUSDCOut)} ${pairSymbol}`}
+              />
               <ValueChange
-                title="Your USDC tokens"
-                curValue={`${toBalance(usdcBalance, 7)} USDC`}
+                title={`Your ${pairSymbol} tokens`}
+                curValue={`${toBalance(usdcBalance, 7)} ${pairSymbol}`}
                 newValue={`${toBalance(
                   usdcBalance + BigInt(Math.floor(minUSDCOut * 1e7)),
                   7
-                )} USDC`}
+                )} ${pairSymbol}`}
               />
             </>
           </TxOverview>

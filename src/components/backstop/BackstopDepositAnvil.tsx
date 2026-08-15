@@ -1,6 +1,8 @@
 import {
   BackstopContractV1,
+  BackstopPoolUserV3,
   BackstopPoolUserEst,
+  BackstopPoolV3,
   parseResult,
   PoolBackstopActionArgs,
 } from '@blend-capital/blend-sdk';
@@ -76,7 +78,9 @@ export const BackstopDepositAnvil: React.FC<PoolComponentProps> = ({ poolId }) =
   if (
     backstop === undefined ||
     backstopPoolData === undefined ||
-    backstopUserPoolData === undefined
+    backstopUserPoolData === undefined ||
+    backstopPoolData instanceof BackstopPoolV3 ||
+    backstopUserPoolData instanceof BackstopPoolUserV3
   ) {
     return <Skeleton />;
   }

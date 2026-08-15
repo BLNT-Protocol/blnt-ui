@@ -6,10 +6,21 @@ An open source UI for interacting with the Blend Protocol.
 
 The Blend UI has network specific configurations and build commands, which all export the UI to `out/`.
 
-To run the UI as a dev server, first build the UI to setup the local environment variables then run:
+This candidate consumes the adjacent `blend-sdk-js` checkout. Build that SDK
+before installing or running the UI:
 
 ```bash
-npm run dev
+cd ../blend-sdk-js
+npm install
+npm run build
+cd ../blend-ui
+npm install
+```
+
+To run the testnet UI as a development server, run:
+
+```bash
+npm run dev:testnet
 ```
 
 #### Testnet

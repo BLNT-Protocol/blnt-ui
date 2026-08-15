@@ -1,17 +1,20 @@
 import {
   ContractErrorType,
+  MigrationStatusV3,
   parseError,
   PoolClaimArgs,
   PoolContractV1,
   PositionsEstimate,
+  Version,
 } from '@blend-capital/blend-sdk';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import { Box, SxProps, Theme, Tooltip, useTheme } from '@mui/material';
+import { Box, SxProps, Theme, Tooltip, Typography, useTheme } from '@mui/material';
 import { rpc } from '@stellar/stellar-sdk';
 import { useSettings, ViewType } from '../../contexts';
 import { useWallet } from '../../contexts/wallet';
 import {
   useHorizonAccount,
+  useBackstopV3,
   usePool,
   usePoolMeta,
   usePoolOracle,
@@ -36,6 +39,8 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
   const { connected, walletAddress, poolClaim, createTrustlines, restore } = useWallet();
 
   const { data: poolMeta } = usePoolMeta(poolId);
+  const isV3 = poolMeta?.version === Version.V3;
+  const { data: backstopV3 } = useBackstopV3(isV3);
   const { data: account, refetch: refechAccount } = useHorizonAccount();
   const { data: pool } = usePool(poolMeta);
   const { data: poolOracle } = usePoolOracle(pool);
@@ -52,12 +57,21 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
     reserve_token_ids: claimedTokens,
     to: walletAddress,
   };
+  const v3PoolClaimsAvailable =
+    !isV3 ||
+    (backstopV3 !== undefined &&
+      backstopV3.migration.status === MigrationStatusV3.Active &&
+      (backstopV3.migration.scheduled_backfill === BigInt(0) ||
+        backstopV3.migration.funded_backfill === backstopV3.migration.scheduled_backfill));
   const sim_op = poolContract && walletAddress !== '' ? poolContract.claim(claimArgs) : '';
   const {
     data: simResult,
     isLoading,
     refetch: refetchSim,
-  } = useSimulateOperation(sim_op, claimedTokens.length > 0 && sim_op !== '' && connected);
+  } = useSimulateOperation(
+    sim_op,
+    claimedTokens.length > 0 && sim_op !== '' && connected && v3PoolClaimsAvailable
+  );
 
   if (pool === undefined || userPoolData === undefined) {
     return <Skeleton />;
@@ -101,7 +115,46 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
   };
 
   function renderClaimButton() {
-    if (hasBLNDTrustline && !isRestore && !isError) {
+    if (isV3 && !v3PoolClaimsAvailable) {
+      return (
+        <Tooltip
+          title="V3 pool emissions become claimable after emitter migration and exact backfill funding."
+          placement="top-start"
+          enterTouchDelay={0}
+          enterDelay={500}
+          leaveTouchDelay={3000}
+        >
+          <Box sx={{ width: '100%' }}>
+            <CustomButton
+              sx={{
+                width: '100%',
+                padding: '12px',
+                color: theme.palette.text.primary,
+                backgroundColor: theme.palette.background.paper,
+              }}
+              disabled
+            >
+              <Box sx={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center' }}>
+                <FlameIcon />
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                  <StackedText
+                    title="Claim Pool Emissions"
+                    titleColor="inherit"
+                    text={`${toBalance(emissions)} BLND`}
+                    textColor="inherit"
+                    type="large"
+                  />
+                  <Typography variant="body2" color={theme.palette.warning.main}>
+                    Pending V3 migration
+                  </Typography>
+                </Box>
+              </Box>
+              <ArrowForwardIcon fontSize="inherit" />
+            </CustomButton>
+          </Box>
+        </Tooltip>
+      );
+    } else if (hasBLNDTrustline && !isRestore && !isError) {
       return (
         <CustomButton
           sx={{

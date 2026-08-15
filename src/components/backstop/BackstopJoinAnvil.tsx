@@ -1,12 +1,12 @@
-import { Version, parseResult } from '@blend-capital/blend-sdk';
+import { BackstopTierV3, Version, parseResult } from '@blend-capital/blend-sdk';
 import { LoopOutlined } from '@mui/icons-material';
 import { Box, Typography, useTheme } from '@mui/material';
-import { rpc, scValToBigInt, xdr } from '@stellar/stellar-sdk';
+import { Asset, rpc, scValToBigInt, xdr } from '@stellar/stellar-sdk';
 import Image from 'next/image';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ViewType, useSettings } from '../../contexts';
 import { TxStatus, TxType, useWallet } from '../../contexts/wallet';
-import { useBackstop, useHorizonAccount, useTokenBalance } from '../../hooks/api';
+import { useHorizonAccount, useManagedBackstopToken, useTokenBalance } from '../../hooks/api';
 import { RPC_DEBOUNCE_DELAY, useDebouncedState } from '../../hooks/debounce';
 import { estJoinPool, estLPTokenViaJoin } from '../../utils/comet';
 import { toBalance } from '../../utils/formatter';
@@ -25,9 +25,12 @@ import { TxOverview } from '../common/TxOverview';
 import { Value } from '../common/Value';
 import { ValueChange } from '../common/ValueChange';
 
-export const BackstopJoinAnvil = () => {
+export const BackstopJoinAnvil: React.FC<{ tier?: BackstopTierV3; version?: Version }> = ({
+  tier,
+  version,
+}) => {
   const theme = useTheme();
-  const { viewType, network } = useSettings();
+  const { viewType } = useSettings();
   const {
     walletAddress,
     txStatus,
@@ -38,23 +41,18 @@ export const BackstopJoinAnvil = () => {
     txInclusionFee,
   } = useWallet();
 
-  const BLND_ID = BLND_ASSET.contractId(network.passphrase);
-  const USDC_ID = USDC_ASSET.contractId(network.passphrase);
-
-  const { data: backstop } = useBackstop(Version.V1);
+  const { backstopToken, blndTokenId, cometPoolId, lpSymbol, pairSymbol, pairTokenId } =
+    useManagedBackstopToken(tier, version);
+  const pairAsset = pairSymbol === 'XLM' ? Asset.native() : USDC_ASSET;
   const { data: horizonAccount } = useHorizonAccount();
-  const { data: blndBalanceRes } = useTokenBalance(BLND_ID, BLND_ASSET, horizonAccount);
-  const { data: usdcBalanceRes } = useTokenBalance(USDC_ID, USDC_ASSET, horizonAccount);
-  const { data: lpBalanceRes } = useTokenBalance(
-    backstop?.backstopToken?.id ?? '',
-    undefined,
-    horizonAccount
-  );
+  const { data: blndBalanceRes } = useTokenBalance(blndTokenId, BLND_ASSET, horizonAccount);
+  const { data: usdcBalanceRes } = useTokenBalance(pairTokenId, pairAsset, horizonAccount);
+  const { data: lpBalanceRes } = useTokenBalance(cometPoolId, undefined, horizonAccount);
 
   const [currentToken, setCurrentToken] = useState<{
     address: string | undefined;
     symbol: string;
-  }>({ address: USDC_ID, symbol: 'USDC' });
+  }>({ address: pairTokenId, symbol: pairSymbol });
   const [input, setInput] = useState<{ amount: string; slippage: string }>({
     amount: '',
     slippage: '1',
@@ -67,7 +65,7 @@ export const BackstopJoinAnvil = () => {
   const [simResponse, setSimResponse] = useState<rpc.Api.SimulateTransactionResponse>();
   const loading = isLoading || loadingEstimate;
   const decimals = 7;
-  const isJoin = currentToken.symbol === 'BLND-USDC LP';
+  const isJoin = currentToken.symbol === lpSymbol;
   const validDecimals = (input.amount.split('.')[1]?.length ?? 0) <= decimals;
 
   const clearInputResultState = () => {
@@ -90,13 +88,18 @@ export const BackstopJoinAnvil = () => {
   const lpBalance = lpBalanceRes ?? BigInt(0);
 
   const curTokenBalance =
-    currentToken.symbol === 'USDC'
+    currentToken.symbol === pairSymbol
       ? usdcBalance
       : currentToken.symbol === 'BLND'
       ? blndBalance
       : lpBalance;
-  const maxBLNDDeposit = backstop ? backstop.backstopToken.blnd / BigInt(3) - BigInt(1) : BigInt(0);
-  const maxUSDCDeposit = backstop ? backstop.backstopToken.usdc / BigInt(3) - BigInt(1) : BigInt(0);
+  const maxBLNDDeposit = backstopToken ? backstopToken.blnd / BigInt(3) - BigInt(1) : BigInt(0);
+  const maxUSDCDeposit = backstopToken ? backstopToken.usdc / BigInt(3) - BigInt(1) : BigInt(0);
+
+  useEffect(() => {
+    setCurrentToken({ address: pairTokenId, symbol: pairSymbol });
+    setInput({ amount: '', slippage: '1' });
+  }, [pairSymbol, pairTokenId]);
 
   /** run function on each state change */
   useDebouncedState(input, RPC_DEBOUNCE_DELAY, txType, handleInputChange);
@@ -155,7 +158,7 @@ export const BackstopJoinAnvil = () => {
           decimals
         )}`;
         errorProps.disabledType = 'warning';
-      } else if (currentToken.symbol === 'USDC' && inputAsBigInt > maxUSDCDeposit) {
+      } else if (currentToken.symbol === pairSymbol && inputAsBigInt > maxUSDCDeposit) {
         errorProps.isSubmitDisabled = true;
         errorProps.isError = true;
         errorProps.isMaxDisabled = true;
@@ -173,7 +176,7 @@ export const BackstopJoinAnvil = () => {
         errorProps.isMaxDisabled = true;
         errorProps.reason = `You do not have enough tokens to mint the requested amount. You need ${toBalance(
           maxBLNDIn
-        )} BLND and ${toBalance(maxUSDCIn)} USDC.`;
+        )} BLND and ${toBalance(maxUSDCIn)} ${pairSymbol}.`;
         errorProps.disabledType = 'warning';
       }
       if (errorProps.isError) {
@@ -190,9 +193,10 @@ export const BackstopJoinAnvil = () => {
       simResponse,
       maxUSDCDeposit,
       maxBLNDDeposit,
+      pairSymbol,
     ]);
 
-  if (backstop === undefined) {
+  if (backstopToken === undefined || cometPoolId === '') {
     return <Skeleton />;
   }
 
@@ -206,16 +210,16 @@ export const BackstopJoinAnvil = () => {
       let max = curTokenBalance;
       if (currentToken.symbol === 'BLND' && curTokenBalance > maxBLNDDeposit) {
         max = maxBLNDDeposit;
-      } else if (currentToken.symbol === 'USDC' && curTokenBalance > maxUSDCDeposit) {
+      } else if (currentToken.symbol === pairSymbol && curTokenBalance > maxUSDCDeposit) {
         max = maxUSDCDeposit;
       }
       setLoadingEstimate(true);
       handleSetInputAmount((Number(max) / 10 ** decimals).toFixed(decimals));
-    } else if (backstop) {
+    } else if (backstopToken) {
       const slippageAsNum = Number(input.slippage) / 100;
       if (slippageAsNum > 0 && slippageAsNum <= 0.1) {
         let est_max_join = estLPTokenViaJoin(
-          backstop.backstopToken,
+          backstopToken,
           blndBalance,
           usdcBalance,
           slippageAsNum
@@ -230,17 +234,17 @@ export const BackstopJoinAnvil = () => {
     setLoadingEstimate(true);
     clearInputResultState();
     const validDecimals = (amount.split('.')[1]?.length ?? 0) <= decimals;
-    if (validDecimals && currentToken.address && backstop?.config.backstopTkn && walletAddress) {
+    if (validDecimals && currentToken.address && cometPoolId && backstopToken && walletAddress) {
       const inputAsBigInt = scaleInputToBigInt(amount, decimals);
       const slippageAsNum = Number(slippage) / 100;
       if (
         !isJoin &&
         inputAsBigInt <= curTokenBalance &&
         ((currentToken.symbol === 'BLND' && inputAsBigInt <= maxBLNDDeposit) ||
-          (currentToken.symbol === 'USDC' && inputAsBigInt <= maxUSDCDeposit))
+          (currentToken.symbol === pairSymbol && inputAsBigInt <= maxUSDCDeposit))
       ) {
         cometSingleSidedDeposit(
-          backstop.config.backstopTkn,
+          cometPoolId,
           {
             depositTokenAddress: currentToken.address,
             depositTokenAmount: inputAsBigInt,
@@ -268,12 +272,12 @@ export const BackstopJoinAnvil = () => {
             console.error(e);
           });
       } else if (isJoin && validDecimals) {
-        let { blnd, usdc } = estJoinPool(backstop.backstopToken, inputAsBigInt, slippageAsNum);
+        let { blnd, usdc } = estJoinPool(backstopToken, inputAsBigInt, slippageAsNum);
         setMaxBLNDIn(blnd);
         setMaxUSDCIn(usdc);
         if (blnd < Number(blndBalance) / 1e7 && usdc < Number(usdcBalance) / 1e7) {
           cometJoin(
-            backstop.config.backstopTkn,
+            cometPoolId,
             {
               user: walletAddress,
               poolAmount: inputAsBigInt,
@@ -296,9 +300,9 @@ export const BackstopJoinAnvil = () => {
   }
 
   async function handleSubmitDeposit() {
-    if (validDecimals && backstop?.config.backstopTkn && currentToken.address) {
+    if (validDecimals && cometPoolId && currentToken.address) {
       await cometSingleSidedDeposit(
-        backstop?.config.backstopTkn,
+        cometPoolId,
         {
           depositTokenAddress: currentToken.address,
           depositTokenAmount: scaleInputToBigInt(input.amount, decimals),
@@ -311,9 +315,9 @@ export const BackstopJoinAnvil = () => {
   }
 
   async function handleSubmitJoin() {
-    if (validDecimals && backstop?.config.backstopTkn) {
+    if (validDecimals && cometPoolId) {
       await cometJoin(
-        backstop?.config.backstopTkn,
+        cometPoolId,
         {
           user: walletAddress,
           poolAmount: scaleInputToBigInt(input.amount, decimals),
@@ -326,34 +330,37 @@ export const BackstopJoinAnvil = () => {
   }
 
   function handleSwitchToken() {
-    if (backstop) {
+    if (backstopToken) {
       handleSetInputAmount('');
       clearInputResultState();
-      if (currentToken.symbol === 'USDC') {
+      if (currentToken.symbol === pairSymbol) {
         setCurrentToken({
-          address: backstop.config.blndTkn,
+          address: blndTokenId,
           symbol: 'BLND',
         });
       } else if (currentToken.symbol === 'BLND') {
         setCurrentToken({
-          address: backstop.config.backstopTkn,
-          symbol: 'BLND-USDC LP',
+          address: cometPoolId,
+          symbol: lpSymbol,
         });
       } else {
         setCurrentToken({
-          address: backstop.config.usdcTkn,
-          symbol: 'USDC',
+          address: pairTokenId,
+          symbol: pairSymbol,
         });
       }
     }
   }
 
-  const inputInUSDC = isJoin
-    ? Number(input.amount) * backstop.backstopToken.lpTokenPrice
-    : currentToken.symbol === 'BLND'
-    ? Number(input.amount) *
-      (Number(backstop.backstopToken.usdc) / 0.2 / (Number(backstop.backstopToken.blnd) / 0.8))
-    : Number(input.amount);
+  const inputInUSDC =
+    pairSymbol === 'USDC'
+      ? isJoin
+        ? Number(input.amount) * backstopToken.lpTokenPrice
+        : currentToken.symbol === 'BLND'
+        ? Number(input.amount) *
+          (Number(backstopToken.usdc) / 0.2 / (Number(backstopToken.blnd) / 0.8))
+        : Number(input.amount)
+      : undefined;
 
   return (
     <Row>
@@ -495,9 +502,13 @@ export const BackstopJoinAnvil = () => {
               gap: '12px',
             }}
           >
-            <Typography variant="h5" sx={{ color: theme.palette.text.secondary }}>
-              {`$${toBalance(inputInUSDC)}`}
-            </Typography>
+            {inputInUSDC !== undefined ? (
+              <Typography variant="h5" sx={{ color: theme.palette.text.secondary }}>
+                {`$${toBalance(inputInUSDC)}`}
+              </Typography>
+            ) : (
+              <Box />
+            )}
             <Box
               sx={{
                 display: 'flex',
@@ -526,7 +537,7 @@ export const BackstopJoinAnvil = () => {
             <>
               {' '}
               {isJoin ? (
-                <Value title="Amount to mint" value={`${input.amount ?? '0'} BLND-USDC LP`} />
+                <Value title="Amount to mint" value={`${input.amount ?? '0'} ${lpSymbol}`} />
               ) : (
                 <Value
                   title="Amount to deposit"
@@ -556,29 +567,32 @@ export const BackstopJoinAnvil = () => {
                       7
                     )} BLND`}
                   />
-                  <Value title="Max USDC to deposit" value={`${toBalance(maxUSDCIn)} USDC`} />
+                  <Value
+                    title={`Max ${pairSymbol} to deposit`}
+                    value={`${toBalance(maxUSDCIn)} ${pairSymbol}`}
+                  />
                   <ValueChange
-                    title="Your USDC tokens"
-                    curValue={`${toBalance(usdcBalance, 7)} USDC`}
+                    title={`Your ${pairSymbol} tokens`}
+                    curValue={`${toBalance(usdcBalance, 7)} ${pairSymbol}`}
                     newValue={`${toBalance(
                       usdcBalance - BigInt(Math.floor(maxUSDCIn * 1e7)),
                       7
-                    )} USDC`}
+                    )} ${pairSymbol}`}
                   />
                 </>
               ) : (
                 <>
                   <Value
-                    title="Min BLND-USDC LP tokens minted"
-                    value={`${toBalance(toMint)} BLND-USDC LP`}
+                    title={`Min ${lpSymbol} tokens minted`}
+                    value={`${toBalance(toMint)} ${lpSymbol}`}
                   />
                   <ValueChange
                     title="Your LP tokens"
-                    curValue={`${toBalance(lpBalance, 7)} BLND-USDC LP`}
+                    curValue={`${toBalance(lpBalance, 7)} ${lpSymbol}`}
                     newValue={`${toBalance(
                       lpBalance + BigInt(Math.floor(toMint * 1e7)),
                       7
-                    )} BLND-USDC LP`}
+                    )} ${lpSymbol}`}
                   />
                 </>
               )}

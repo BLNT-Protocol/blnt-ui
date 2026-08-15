@@ -1,9 +1,12 @@
 import {
   BackstopClaimV1Args,
   BackstopClaimV2Args,
+  Backstop,
   BackstopContractV1,
   BackstopContractV2,
+  BackstopPool,
   BackstopPoolEst,
+  BackstopPoolUser,
   BackstopPoolUserEst,
   ContractErrorType,
   FixedMath,
@@ -18,6 +21,7 @@ import type { NextPage } from 'next';
 import { useRouter } from 'next/router';
 import { BackstopAPR } from '../components/backstop/BackstopAPR';
 import { BackstopQueueMod } from '../components/backstop/BackstopQueueMod';
+import { BackstopV3View } from '../components/backstop/BackstopV3View';
 import { CustomButton } from '../components/common/CustomButton';
 import { Divider } from '../components/common/Divider';
 import { FlameIcon } from '../components/common/FlameIcon';
@@ -44,22 +48,26 @@ import {
   useTokenBalance,
 } from '../hooks/api';
 import { NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
+import { PoolMeta } from '../hooks/types';
 import theme from '../theme';
 import { CometClient } from '../utils/comet';
 import { toBalance, toPercentage } from '../utils/formatter';
 
-const Backstop: NextPage = () => {
-  const router = useRouter();
+const LegacyBackstop: React.FC<{ poolMeta: PoolMeta; safePoolId: string }> = ({
+  poolMeta,
+  safePoolId,
+}) => {
   const { isV2Enabled } = useSettings();
   const { connected, walletAddress, backstopClaim, restore } = useWallet();
-
-  const { poolId } = router.query;
-  const safePoolId = typeof poolId == 'string' && /^[0-9A-Z]{56}$/.test(poolId) ? poolId : '';
-
-  const { data: poolMeta, error: poolError } = usePoolMeta(safePoolId);
-  const { data: backstop } = useBackstop(poolMeta?.version);
-  const { data: backstopPoolData } = useBackstopPool(poolMeta);
-  const { data: userBackstopPoolData } = useBackstopPoolUser(poolMeta);
+  const usesV2Backstop =
+    poolMeta.version === Version.V2 ||
+    poolMeta.wasmHash === 'a41fc53d6753b6c04eb15b021c55052366a4c8e0e21bc72700f461264ec1350e';
+  const { data: loadedBackstop } = useBackstop(poolMeta.version);
+  const backstop = loadedBackstop as Backstop | undefined;
+  const { data: loadedBackstopPoolData } = useBackstopPool(poolMeta);
+  const backstopPoolData = loadedBackstopPoolData as BackstopPool | undefined;
+  const { data: loadedUserBackstopPoolData } = useBackstopPoolUser(poolMeta);
+  const userBackstopPoolData = loadedUserBackstopPoolData as BackstopPoolUser | undefined;
   const { data: horizonAccount } = useHorizonAccount();
   const { data: lpBalance } = useTokenBalance(
     backstop?.backstopToken?.id ?? '',
@@ -89,13 +97,17 @@ const Backstop: NextPage = () => {
 
   let claimOp = '';
 
-  if (isV2Enabled && poolMeta?.version == Version.V2) {
+  if (isV2Enabled && usesV2Backstop) {
     const claimArgs: BackstopClaimV2Args = {
       from: walletAddress,
       pool_addresses: [safePoolId],
       min_lp_tokens_out: BigInt(0),
     };
-    let backstopContract = new BackstopContractV2(process.env.NEXT_PUBLIC_BACKSTOP_V2 ?? '');
+    let backstopContract = new BackstopContractV2(
+      poolMeta.version === Version.V1
+        ? process.env.NEXT_PUBLIC_BACKSTOP ?? ''
+        : process.env.NEXT_PUBLIC_BACKSTOP_V2 ?? ''
+    );
     claimOp =
       safePoolId && walletAddress !== '' && backstopContract
         ? backstopContract.claim(claimArgs)
@@ -161,7 +173,7 @@ const Backstop: NextPage = () => {
   const handleClaimEmissionsClick = async () => {
     if (connected && poolMeta && userBackstopPoolData) {
       let claimArgs: BackstopClaimV1Args | BackstopClaimV2Args;
-      if (isV2Enabled && poolMeta.version == Version.V2) {
+      if (isV2Enabled && usesV2Backstop) {
         claimArgs = {
           from: walletAddress,
           pool_addresses: [safePoolId],
@@ -302,10 +314,6 @@ const Backstop: NextPage = () => {
       refetchClaimSim();
     }
   };
-
-  if (poolError?.message === NOT_BLEND_POOL_ERROR_MESSAGE) {
-    return <NotPoolBar poolId={safePoolId} />;
-  }
 
   return (
     <>
@@ -462,14 +470,17 @@ const Backstop: NextPage = () => {
               alignItems: 'center',
             }}
           >
-            <LinkBox sx={{ width: SectionSize.TILE }} to={{ pathname: '/backstop-token' }}>
+            <LinkBox
+              sx={{ width: SectionSize.TILE }}
+              to={{ pathname: '/backstop-token', query: { version: poolMeta.version } }}
+            >
               <OpaqueButton palette={theme.palette.primary} sx={{ width: '100%', padding: '6px' }}>
                 Manage
               </OpaqueButton>
             </LinkBox>
             <LinkBox
               sx={{ width: SectionSize.TILE }}
-              to={{ pathname: '/backstop-deposit', query: { poolId: poolId } }}
+              to={{ pathname: '/backstop-deposit', query: { poolId: safePoolId } }}
             >
               <OpaqueButton palette={theme.palette.backstop} sx={{ width: '100%', padding: '6px' }}>
                 Backstop Deposit
@@ -526,7 +537,7 @@ const Backstop: NextPage = () => {
           </Row>
           <LinkBox
             sx={{ width: '100%', paddingRight: '12px' }}
-            to={{ pathname: 'backstop-q4w', query: { poolId: poolId } }}
+            to={{ pathname: 'backstop-q4w', query: { poolId: safePoolId } }}
           >
             <OpaqueButton
               palette={theme.palette.positive}
@@ -542,4 +553,20 @@ const Backstop: NextPage = () => {
   );
 };
 
-export default Backstop;
+const BackstopPage: NextPage = () => {
+  const router = useRouter();
+  const { poolId } = router.query;
+  const safePoolId = typeof poolId === 'string' && /^[0-9A-Z]{56}$/.test(poolId) ? poolId : '';
+  const { data: poolMeta, error: poolError } = usePoolMeta(safePoolId);
+
+  if (poolError?.message === NOT_BLEND_POOL_ERROR_MESSAGE) {
+    return <NotPoolBar poolId={safePoolId} />;
+  }
+  if (poolMeta?.version === Version.V3) {
+    return <BackstopV3View poolMeta={poolMeta} />;
+  }
+  if (poolMeta === undefined) return <></>;
+  return <LegacyBackstop poolMeta={poolMeta} safePoolId={safePoolId} />;
+};
+
+export default BackstopPage;

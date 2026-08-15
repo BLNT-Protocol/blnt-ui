@@ -1,6 +1,8 @@
 import {
   BackstopContractV1,
+  BackstopPoolUserV3,
   BackstopPoolUserEst,
+  BackstopPoolV3,
   FixedMath,
   parseResult,
   PoolBackstopActionArgs,
@@ -87,7 +89,12 @@ export const BackstopQueueAnvil: React.FC<PoolComponentProps> = ({ poolId }) => 
       return getErrorFromSim(toQueue, decimals, loading, simResponse, undefined);
     }, [simResponse, toQueue, backstopUserData, loading]);
 
-  if (backstop === undefined || backstopPoolData === undefined) {
+  if (
+    backstop === undefined ||
+    backstopPoolData === undefined ||
+    backstopPoolData instanceof BackstopPoolV3 ||
+    backstopUserData instanceof BackstopPoolUserV3
+  ) {
     return <Skeleton />;
   }
 

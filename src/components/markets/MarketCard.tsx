@@ -1,4 +1,4 @@
-import { BackstopPoolEst, PoolEstimate } from '@blend-capital/blend-sdk';
+import { PoolEstimate } from '@blend-capital/blend-sdk';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { Box, Collapse, Typography, useTheme } from '@mui/material';
@@ -13,6 +13,7 @@ import {
   useTokenMetadataList,
 } from '../../hooks/api';
 import { toBalance } from '../../utils/formatter';
+import { getBackstopPoolMetrics } from '../../utils/backstop';
 import { ReserveTokenMetadata } from '../../utils/token';
 import { LinkBox } from '../common/LinkBox';
 import { OpaqueButton } from '../common/OpaqueButton';
@@ -90,10 +91,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({ poolId, index, onLoaded,
       backstop !== undefined &&
       isOracleError
     ) {
-      const backstopPoolEst = BackstopPoolEst.build(
-        backstop.backstopToken,
-        backstopPool.poolBalance
-      );
+      const backstopPoolEst = getBackstopPoolMetrics(backstop, backstopPool);
       const processedTokenMetadata: ReserveTokenMetadata[] = tokenMetadataList
         .filter((result) => result.data !== undefined)
         .map((result) => result.data!)
@@ -118,10 +116,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({ poolId, index, onLoaded,
       poolOracle !== undefined
     ) {
       const poolEst = PoolEstimate.build(pool.reserves, poolOracle);
-      const backstopPoolEst = BackstopPoolEst.build(
-        backstop.backstopToken,
-        backstopPool.poolBalance
-      );
+      const backstopPoolEst = getBackstopPoolMetrics(backstop, backstopPool);
       const processedTokenMetadata: ReserveTokenMetadata[] = tokenMetadataList
         .filter((result) => result.data !== undefined)
         .map((result) => result.data!)
@@ -189,7 +184,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({ poolId, index, onLoaded,
   }
 
   const poolEst = poolOracle ? PoolEstimate.build(pool.reserves, poolOracle) : undefined;
-  const backstopPoolEst = BackstopPoolEst.build(backstop.backstopToken, backstopPool.poolBalance);
+  const backstopPoolEst = getBackstopPoolMetrics(backstop, backstopPool);
   return (
     <Section width={SectionSize.FULL} sx={{ flexDirection: 'column', marginBottom: '12px', ...sx }}>
       <Box
@@ -305,7 +300,6 @@ export const MarketCard: React.FC<MarketCardProps> = ({ poolId, index, onLoaded,
           pool={pool}
           oracle={poolOracle}
           poolEst={poolEst}
-          backstopPool={backstopPool}
           backstopPoolEst={backstopPoolEst}
         ></MarketCardCollapse>
       </Collapse>

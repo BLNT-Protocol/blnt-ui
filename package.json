@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
+    "dev:testnet": "TARGET_ENV=testnet node loadEnv.js && next dev",
     "build": "next build",
     "build:mainnet": "TARGET_ENV=production node loadEnv.js && next build",
     "build:testnet": "TARGET_ENV=testnet node loadEnv.js && next build",
@@ -12,7 +13,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@blend-capital/blend-sdk": "3.3.0",
+    "@blend-capital/blend-sdk": "file:../blend-sdk-js",
     "@creit.tech/stellar-wallets-kit": "2.3.0",
     "@emotion/react": "^11.9.3",
     "@emotion/styled": "^11.9.3",

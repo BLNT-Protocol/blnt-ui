@@ -109,15 +109,16 @@ const Dashboard: NextPage = () => {
             }}
           >
             <Box
+              component="span"
               sx={{
                 display: 'flex',
                 alignItems: 'center',
               }}
             >
-              <Typography variant="body2" sx={{ marginRight: '4px' }}>
+              <Typography component="span" variant="body2" sx={{ marginRight: '4px' }}>
                 {'Positions used'}
               </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+              <Typography component="span" variant="body2" sx={{ fontWeight: 'bold' }}>
                 {` ${
                   Array.from(userPoolData.positions.collateral.entries()).length +
                   Array.from(userPoolData.positions.liabilities.entries()).length

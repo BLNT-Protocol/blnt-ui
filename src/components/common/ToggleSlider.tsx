@@ -1,5 +1,6 @@
 import { Box, Button, ButtonBaseProps, PaletteColor, useTheme } from '@mui/material';
 import React from 'react';
+import { Icon } from './Icon';
 
 export interface OptionProp {
   optionName: string;
@@ -12,6 +13,7 @@ export interface ToggleSliderProps extends ButtonBaseProps {
   changeState: (value: any) => void;
   passedRef?: any;
   text?: string[];
+  icons?: { src: string; alt: string }[];
 }
 
 export const ToggleSlider: React.FC<ToggleSliderProps> = ({
@@ -21,6 +23,7 @@ export const ToggleSlider: React.FC<ToggleSliderProps> = ({
   sx,
   passedRef,
   text,
+  icons,
 }) => {
   const theme = useTheme();
 
@@ -69,7 +72,16 @@ export const ToggleSlider: React.FC<ToggleSliderProps> = ({
           }}
           onClick={() => handleChangeToggle(option.optionName)}
         >
-          {text !== undefined ? text.at(index) ?? option.optionName : option.optionName}
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+            {icons?.at(index) !== undefined && (
+              <Icon
+                src={icons[index].src}
+                alt={icons[index].alt}
+                sx={{ height: '30px', width: '30px' }}
+              />
+            )}
+            {text !== undefined ? text.at(index) ?? option.optionName : option.optionName}
+          </Box>
         </Button>
       ))}
     </Box>
