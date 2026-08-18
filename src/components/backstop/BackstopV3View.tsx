@@ -1,5 +1,5 @@
 import {
-  BACKSTOP_TIERS_V3,
+  BackstopAssetV3,
   BackstopClaimArgsV3,
   BackstopContractV3,
   BackstopPoolUserV3,
@@ -179,7 +179,7 @@ interface V3ClaimButtonProps {
   backstop: BackstopV3;
   poolMeta: PoolMeta;
   pool: BackstopPoolV3;
-  tier: BackstopTierV3.BlndXlm | BackstopTierV3.BlndUsdc;
+  tier: BackstopTierV3;
 }
 
 const V3ClaimButton: React.FC<V3ClaimButtonProps> = ({ backstop, poolMeta, pool, tier }) => {
@@ -193,7 +193,7 @@ const V3ClaimButton: React.FC<V3ClaimButtonProps> = ({ backstop, poolMeta, pool,
     isLoading: isEstimateLoading,
     isError: isEstimateError,
   } = useBackstopClaimableV3(tier, poolMeta);
-  const { data: tierToken } = useBackstopTierTokenV3(tier);
+  const { data: tierToken } = useBackstopTierTokenV3(tier, poolMeta);
   const args: BackstopClaimArgsV3 = {
     tier,
     from: walletAddress,
@@ -216,6 +216,7 @@ const V3ClaimButton: React.FC<V3ClaimButtonProps> = ({ backstop, poolMeta, pool,
       ? parseResult(simulation, BackstopContractV3.parsers.claim) ?? BigInt(0)
       : BigInt(0);
   const tierData = pool.tier(tier).data;
+  const tierLabel = getTierLabel(tier, tierData.token, tierData.asset);
   const value =
     tierData.tokens > BigInt(0)
       ? FixedMath.toFloat((amount * tierData.value) / tierData.tokens, 7)
@@ -275,8 +276,8 @@ const V3ClaimButton: React.FC<V3ClaimButtonProps> = ({ backstop, poolMeta, pool,
       <Box sx={{ display: 'flex', alignItems: 'center' }}>
         <FlameIcon />
         <Icon
-          src={getTierIcon(tier)}
-          alt={getTierLabel(tier)}
+          src={getTierIcon(tier, tierData.token, tierData.asset)}
+          alt={tierLabel}
           sx={{ height: '30px', width: '30px', marginRight: '12px' }}
         />
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
@@ -290,7 +291,7 @@ const V3ClaimButton: React.FC<V3ClaimButtonProps> = ({ backstop, poolMeta, pool,
                 </Typography>
                 {(claimsAvailable || pendingAmountHasUnit) && (
                   <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
-                    {getTierLabel(tier)}
+                    {tierLabel}
                   </Typography>
                 )}
               </Box>
@@ -301,9 +302,9 @@ const V3ClaimButton: React.FC<V3ClaimButtonProps> = ({ backstop, poolMeta, pool,
               )}
               {!claimsAvailable && (
                 <Typography variant="body2" sx={{ color: theme.palette.warning.main }}>
-                  {tier === BackstopTierV3.BlndXlm
-                    ? 'Not eligible for backfill'
-                    : 'Pending V3 migration'}
+                  {tierData.asset === BackstopAssetV3.BlndUsdc
+                    ? 'Pending V3 migration'
+                    : 'Not eligible for backfill'}
                 </Typography>
               )}
             </>
@@ -318,9 +319,11 @@ const V3ClaimButton: React.FC<V3ClaimButtonProps> = ({ backstop, poolMeta, pool,
 const V3TierBalanceCard: React.FC<{
   title: string;
   tier: BackstopTierV3;
+  token: string;
+  asset: BackstopAssetV3;
   amount: bigint | undefined;
   value: number | undefined;
-}> = ({ title, tier, amount, value }) => (
+}> = ({ title, tier, token, asset, amount, value }) => (
   <Box sx={{ width: 'calc(50% - 6px)' }}>
     <Typography variant="body2" sx={{ margin: '6px' }}>
       {title}
@@ -342,7 +345,7 @@ const V3TierBalanceCard: React.FC<{
             {toBalance(amount, 7)}
           </Typography>
           <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
-            {getTierLabel(tier)}
+            {getTierLabel(tier, token, asset)}
           </Typography>
         </Box>
         <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
@@ -363,6 +366,7 @@ interface V3TierCardProps {
 
 const V3TierCard: React.FC<V3TierCardProps> = ({ poolMeta, pool, user, tier, walletBalance }) => {
   const tierPool = pool.tier(tier);
+  const tierLabel = getTierLabel(tier, tierPool.data.token, tierPool.data.asset);
   const userBalance = user?.balance(tier);
   const userTokens = userBalance ? tierPool.sharesToTokens(userBalance.shares) : BigInt(0);
   const queue = userBalance?.q4w ?? [];
@@ -373,17 +377,17 @@ const V3TierCard: React.FC<V3TierCardProps> = ({ poolMeta, pool, user, tier, wal
   );
   const lockedQueue = queue.filter((item) => item.exp > now);
   const lossTierLabel =
-    tier === BackstopTierV3.BlndXlm
+    tier === BackstopTierV3.FirstLoss
       ? 'First-loss tier'
-      : tier === BackstopTierV3.BlndUsdc
+      : tier === BackstopTierV3.SecondLoss
       ? 'Second-loss tier'
       : 'Third-loss tier';
-  const weightPercentage =
-    tier === BackstopTierV3.BlndXlm
-      ? '44.44%'
-      : tier === BackstopTierV3.BlndUsdc
-      ? '33.33%'
-      : '22.22%';
+  const totalWeight = pool.configuredTiers.reduce(
+    (total, configuredTier) => total + pool.tier(configuredTier).data.take_rate_weight,
+    0
+  );
+  const weightPercentage = `${((tierPool.data.take_rate_weight * 100) / totalWeight).toFixed(2)}%`;
+  const canManage = tierPool.data.blnd_emission_eligible;
   const userValue =
     tierPool.data.tokens > BigInt(0)
       ? FixedMath.toFloat((userTokens * tierPool.data.value) / tierPool.data.tokens, 7)
@@ -396,15 +400,15 @@ const V3TierCard: React.FC<V3TierCardProps> = ({ poolMeta, pool, user, tier, wal
   return (
     <Section width={SectionSize.FULL} sx={{ flexDirection: 'column', marginBottom: '12px' }}>
       <Row sx={{ alignItems: 'center', padding: '12px' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', width: '33.33%' }}>
           <Icon
-            src={getTierIcon(tier)}
-            alt={getTierLabel(tier)}
+            src={getTierIcon(tier, tierPool.data.token, tierPool.data.asset)}
+            alt={tierLabel}
             sx={{ height: '30px', width: '30px', marginRight: '12px' }}
           />
-          <Typography variant="h4">{getTierLabel(tier)}</Typography>
+          <Typography variant="h4">{tierLabel}</Typography>
         </Box>
-        <Box sx={{ textAlign: 'right' }}>
+        <Box sx={{ textAlign: 'center', width: '33.33%' }}>
           <Typography variant="body2" color={theme.palette.text.secondary}>
             {lossTierLabel}
           </Typography>
@@ -412,36 +416,41 @@ const V3TierCard: React.FC<V3TierCardProps> = ({ poolMeta, pool, user, tier, wal
             Weight: {weightPercentage}
           </Typography>
         </Box>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: '33.33%' }}>
+          {canManage && (
+            <LinkBox
+              sx={{ width: '100%', maxWidth: '140px' }}
+              to={{ pathname: '/backstop-token', query: { poolId: poolMeta.id, tier } }}
+            >
+              <OpaqueButton palette={theme.palette.primary} sx={{ width: '100%', padding: '6px' }}>
+                Manage LP
+              </OpaqueButton>
+            </LinkBox>
+          )}
+        </Box>
       </Row>
       <Row sx={{ width: SectionSize.FULL, margin: '6px' }}>
         <V3TierBalanceCard
           title="Wallet balance"
           tier={tier}
+          token={tierPool.data.token}
+          asset={tierPool.data.asset}
           amount={walletBalance}
           value={walletValue}
         />
         <V3TierBalanceCard
           title="Backstop deposit"
           tier={tier}
+          token={tierPool.data.token}
+          asset={tierPool.data.asset}
           amount={userTokens}
           value={userValue}
         />
       </Row>
       <Row sx={{ width: SectionSize.FULL, margin: '6px' }}>
-        {tier !== BackstopTierV3.Usdc && (
-          <LinkBox
-            sx={{ width: '33.33%', marginRight: '6px' }}
-            to={{ pathname: '/backstop-token', query: { poolId: poolMeta.id, tier } }}
-          >
-            <OpaqueButton palette={theme.palette.primary} sx={{ width: '100%', padding: '6px' }}>
-              Manage
-            </OpaqueButton>
-          </LinkBox>
-        )}
         <LinkBox
           sx={{
-            width: tier === BackstopTierV3.Usdc ? '50%' : '33.33%',
-            marginLeft: tier === BackstopTierV3.Usdc ? 0 : '6px',
+            width: '50%',
             marginRight: '6px',
           }}
           to={{ pathname: '/backstop-deposit', query: { poolId: poolMeta.id, tier } }}
@@ -451,7 +460,7 @@ const V3TierCard: React.FC<V3TierCardProps> = ({ poolMeta, pool, user, tier, wal
           </OpaqueButton>
         </LinkBox>
         <LinkBox
-          sx={{ width: tier === BackstopTierV3.Usdc ? '50%' : '33.33%', marginLeft: '6px' }}
+          sx={{ width: '50%', marginLeft: '6px' }}
           to={{ pathname: '/backstop-q4w', query: { poolId: poolMeta.id, tier } }}
         >
           <OpaqueButton palette={theme.palette.positive} sx={{ width: '100%', padding: '6px' }}>
@@ -499,28 +508,31 @@ const V3TierCard: React.FC<V3TierCardProps> = ({ poolMeta, pool, user, tier, wal
 
 export const BackstopV3View: React.FC<{ poolMeta: PoolMeta }> = ({ poolMeta }) => {
   const { data: backstop } = useBackstopV3();
+  const { data: loadedPool } = useBackstopPool(poolMeta);
+  const pool = loadedPool instanceof BackstopPoolV3 ? loadedPool : undefined;
+  const emissionEligibleTiers =
+    pool?.configuredTiers.filter((tier) => pool.tier(tier).data.blnd_emission_eligible) ?? [];
+  const hasEmissionEligibleTier = emissionEligibleTiers.length > 0;
   const {
     data: migrationLifecycle,
     isLoading: isMigrationLifecycleLoading,
     isError: isMigrationLifecycleError,
-  } = useBackstopMigrationLifecycleV3(backstop);
-  const { data: loadedPool } = useBackstopPool(poolMeta);
+  } = useBackstopMigrationLifecycleV3(backstop, hasEmissionEligibleTier);
   const { data: loadedUser } = useBackstopPoolUser(poolMeta);
   const { data: horizonAccount } = useHorizonAccount();
-  const pool = loadedPool instanceof BackstopPoolV3 ? loadedPool : undefined;
   const user = loadedUser instanceof BackstopPoolUserV3 ? loadedUser : undefined;
-  const { data: blndXlmBalance } = useTokenBalance(
-    backstop?.tokens[BackstopTierV3.BlndXlm],
+  const { data: firstLossBalance } = useTokenBalance(
+    pool?.tiers[BackstopTierV3.FirstLoss]?.data.token,
     undefined,
     horizonAccount
   );
-  const { data: blndUsdcBalance } = useTokenBalance(
-    backstop?.tokens[BackstopTierV3.BlndUsdc],
+  const { data: secondLossBalance } = useTokenBalance(
+    pool?.tiers[BackstopTierV3.SecondLoss]?.data.token,
     undefined,
     horizonAccount
   );
-  const { data: usdcBalance } = useTokenBalance(
-    backstop?.tokens[BackstopTierV3.Usdc],
+  const { data: thirdLossBalance } = useTokenBalance(
+    pool?.tiers[BackstopTierV3.ThirdLoss]?.data.token,
     undefined,
     horizonAccount
   );
@@ -544,9 +556,9 @@ export const BackstopV3View: React.FC<{ poolMeta: PoolMeta }> = ({ poolMeta }) =
             : 'The migration lifecycle is not configured.',
         };
   const walletBalances = {
-    [BackstopTierV3.BlndXlm]: blndXlmBalance,
-    [BackstopTierV3.BlndUsdc]: blndUsdcBalance,
-    [BackstopTierV3.Usdc]: usdcBalance,
+    [BackstopTierV3.FirstLoss]: firstLossBalance,
+    [BackstopTierV3.SecondLoss]: secondLossBalance,
+    [BackstopTierV3.ThirdLoss]: thirdLossBalance,
   };
 
   return (
@@ -579,53 +591,52 @@ export const BackstopV3View: React.FC<{ poolMeta: PoolMeta }> = ({ poolMeta }) =
           />
         </Section>
       </Row>
-      <Row>
-        <Section width={SectionSize.FULL} sx={{ flexDirection: 'column', paddingTop: '12px' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', margin: '6px' }}>
-            <Typography variant="body2">V3 migration status</Typography>
-            <MigrationPhaseTooltip />
-          </Box>
-          <Box
-            sx={{
-              width: SectionSize.FULL,
-              margin: '6px',
-              padding: '12px',
-              color: theme.palette.text.primary,
-              backgroundColor: theme.palette.background.default,
-              borderRadius: '5px',
-            }}
-          >
-            <Typography variant="h4">{migrationDisplay.status}</Typography>
-            <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-              {migrationDisplay.detail}
-            </Typography>
-          </Box>
-        </Section>
-      </Row>
-      <Row>
-        <Section width={SectionSize.FULL} sx={{ flexDirection: 'column', paddingTop: '12px' }}>
-          <Typography variant="body2" sx={{ margin: '6px' }}>
-            Emissions to claim
-          </Typography>
+      {hasEmissionEligibleTier && (
+        <>
           <Row>
-            <V3ClaimButton
-              backstop={backstop}
-              poolMeta={poolMeta}
-              pool={pool}
-              tier={BackstopTierV3.BlndXlm}
-            />
+            <Section
+              width={SectionSize.FULL}
+              sx={{ flexDirection: 'column', paddingTop: '12px' }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', margin: '6px' }}>
+                <Typography variant="body2">V3 migration status</Typography>
+                <MigrationPhaseTooltip />
+              </Box>
+              <Box
+                sx={{
+                  width: SectionSize.FULL,
+                  margin: '6px',
+                  padding: '12px',
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.background.default,
+                  borderRadius: '5px',
+                }}
+              >
+                <Typography variant="h4">{migrationDisplay.status}</Typography>
+                <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                  {migrationDisplay.detail}
+                </Typography>
+              </Box>
+            </Section>
           </Row>
           <Row>
-            <V3ClaimButton
-              backstop={backstop}
-              poolMeta={poolMeta}
-              pool={pool}
-              tier={BackstopTierV3.BlndUsdc}
-            />
+            <Section
+              width={SectionSize.FULL}
+              sx={{ flexDirection: 'column', paddingTop: '12px' }}
+            >
+              <Typography variant="body2" sx={{ margin: '6px' }}>
+                Emissions to claim
+              </Typography>
+              {emissionEligibleTiers.map((tier) => (
+                <Row key={tier}>
+                  <V3ClaimButton backstop={backstop} poolMeta={poolMeta} pool={pool} tier={tier} />
+                </Row>
+              ))}
+            </Section>
           </Row>
-        </Section>
-      </Row>
-      {BACKSTOP_TIERS_V3.map((tier) => (
+        </>
+      )}
+      {pool.configuredTiers.map((tier) => (
         <V3TierCard
           key={tier}
           poolMeta={poolMeta}

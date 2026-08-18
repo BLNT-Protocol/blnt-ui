@@ -1,5 +1,6 @@
 import {
   Backstop,
+  BackstopAssetV3,
   BackstopConfig,
   BackstopClaimableEstimateV3,
   BackstopEmissionsV3,
@@ -71,6 +72,8 @@ const EMITTER_ID = process.env.NEXT_PUBLIC_EMITTER || '';
 const V3_POOL_WASM_HASH = process.env.NEXT_PUBLIC_V3_POOL_WASM_HASH || '';
 const BLND_TOKEN_ID = process.env.NEXT_PUBLIC_BLND_TOKEN || '';
 const USDC_TOKEN_ID = process.env.NEXT_PUBLIC_USDC_TOKEN || '';
+const BLND_USDC_COMET_ID = process.env.NEXT_PUBLIC_BLND_USDC_COMET || '';
+const BLND_XLM_COMET_ID = process.env.NEXT_PUBLIC_BLND_XLM_COMET || '';
 const ORACLE_PRICE_FETCHER = process.env.NEXT_PUBLIC_ORACLE_PRICE_FETCHER?.trim();
 const POOL_WASM_V1 = 'baf978f10efdbcd85747868bef8832845ea6809f7643b67a4ac0cd669327fc2c';
 const POOL_WASM_V2 = 'a41fc53d6753b6c04eb15b021c55052366a4c8e0e21bc72700f461264ec1350e';
@@ -361,7 +364,7 @@ export function useBackstop(
         const v3 = await BackstopV3.load(network, BACKSTOP_ID_V3);
         const blndUsdcToken = await BackstopToken.load(
           network,
-          v3.tokens[BackstopTierV3.BlndUsdc],
+          BLND_USDC_COMET_ID,
           BLND_TOKEN_ID,
           USDC_TOKEN_ID
         );
@@ -369,7 +372,7 @@ export function useBackstop(
           '',
           BLND_TOKEN_ID,
           USDC_TOKEN_ID,
-          v3.tokens[BackstopTierV3.BlndUsdc],
+          BLND_USDC_COMET_ID,
           '',
           v3.rewardZone,
           v3.latestLedger
@@ -417,9 +420,9 @@ export function useBackstopMigrationLifecycleV3(
       loadMigrationLifecycleV3(network, {
         candidateAddress: BACKSTOP_ID_V3,
         emitterAddress: EMITTER_ID,
-        expectedBlndXlmToken: backstop!.tokens[BackstopTierV3.BlndXlm],
+        expectedBlndXlmToken: BLND_XLM_COMET_ID,
         incumbentBackstop: BACKSTOP_ID_V2,
-        incumbentBlndUsdcToken: backstop!.tokens[BackstopTierV3.BlndUsdc],
+        incumbentBlndUsdcToken: BLND_USDC_COMET_ID,
       }),
     refetchInterval: DEFAULT_STALE_TIME,
   });
@@ -453,24 +456,31 @@ export function useBackstopClaimableV3(
 /** Fetch the Comet state for one of v3's LP-token backstop tiers. */
 export function useBackstopTierTokenV3(
   tier: BackstopTierV3,
+  poolMeta: PoolMeta | undefined,
   enabled: boolean = true
 ): UseQueryResult<BackstopToken, Error> {
   const { network } = useSettings();
-  const { data: backstop } = useBackstopV3(enabled);
-  const pairTokenId =
-    tier === BackstopTierV3.BlndXlm ? Asset.native().contractId(network.passphrase) : USDC_TOKEN_ID;
-  const lpTokenId = backstop?.tokens[tier];
+  const { data: loadedPool } = useBackstopPool(poolMeta, enabled);
+  const pool = loadedPool instanceof BackstopPoolV3 ? loadedPool : undefined;
+  const tierData = pool?.tiers[tier]?.data;
+  const lpTokenId = tierData?.token;
+  const isBlndXlm = tierData?.asset === BackstopAssetV3.BlndXlm;
+  const isBlndUsdc = tierData?.asset === BackstopAssetV3.BlndUsdc;
+  const pairTokenId = isBlndXlm
+    ? Asset.native().contractId(network.passphrase)
+    : USDC_TOKEN_ID;
   return useQuery({
     staleTime: DEFAULT_STALE_TIME,
     queryKey: ['backstopTierTokenV3', tier, lpTokenId],
     enabled:
       enabled &&
-      tier !== BackstopTierV3.Usdc &&
+      tierData?.blnd_emission_eligible === true &&
+      (isBlndXlm || isBlndUsdc) &&
       lpTokenId !== undefined &&
       BLND_TOKEN_ID !== '' &&
       pairTokenId !== '',
     queryFn: async () => {
-      if (lpTokenId === undefined || tier === BackstopTierV3.Usdc) {
+      if (lpTokenId === undefined || (!isBlndXlm && !isBlndUsdc)) {
         throw new Error('The selected v3 tier is not a Comet LP token.');
       }
       return BackstopToken.load(network, lpTokenId, BLND_TOKEN_ID, pairTokenId);
@@ -490,21 +500,25 @@ export interface ManagedBackstopToken {
 /** Resolve the token bindings used by the shared V2/V3 Comet management UI. */
 export function useManagedBackstopToken(
   tier?: BackstopTierV3,
-  version: Version = Version.V1
+  version: Version = Version.V1,
+  poolMeta?: PoolMeta
 ): ManagedBackstopToken {
   const { network } = useSettings();
   const isV3 = tier !== undefined;
-  const effectiveTier = tier ?? BackstopTierV3.BlndUsdc;
+  const effectiveTier = tier ?? BackstopTierV3.SecondLoss;
   const { data: legacyBackstop } = useBackstop(version, !isV3);
-  const { data: v3Backstop } = useBackstopV3(isV3);
-  const { data: v3BackstopToken } = useBackstopTierTokenV3(effectiveTier, isV3);
-  const pairIsXlm = tier === BackstopTierV3.BlndXlm;
+  const { data: loadedPool } = useBackstopPool(poolMeta, isV3);
+  const v3Pool = loadedPool instanceof BackstopPoolV3 ? loadedPool : undefined;
+  const v3TierData = v3Pool?.tiers[effectiveTier]?.data;
+  const v3TierToken = v3TierData?.token;
+  const { data: v3BackstopToken } = useBackstopTierTokenV3(effectiveTier, poolMeta, isV3);
+  const pairIsXlm = v3TierData?.asset === BackstopAssetV3.BlndXlm;
 
   return {
     backstopToken: isV3 ? v3BackstopToken : legacyBackstop?.backstopToken,
     blndTokenId: isV3 ? BLND_TOKEN_ID : legacyBackstop?.config.blndTkn ?? '',
     cometPoolId: isV3
-      ? v3Backstop?.tokens[effectiveTier] ?? ''
+      ? v3TierToken ?? ''
       : legacyBackstop?.config.backstopTkn ?? '',
     lpSymbol: pairIsXlm ? 'BLND-XLM LP' : 'BLND-USDC LP',
     pairSymbol: pairIsXlm ? 'XLM' : 'USDC',

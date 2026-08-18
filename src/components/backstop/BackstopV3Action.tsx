@@ -19,7 +19,6 @@ import { TxStatus, TxType, useWallet } from '../../contexts/wallet';
 import {
   useBackstopPool,
   useBackstopPoolUser,
-  useBackstopV3,
   useHorizonAccount,
   useTokenBalance,
   useSimulateOperation,
@@ -46,7 +45,7 @@ import { ValueChange } from '../common/ValueChange';
 export function parseBackstopTier(value: string | string[] | undefined): BackstopTierV3 {
   return Object.values(BackstopTierV3).includes(value as BackstopTierV3)
     ? (value as BackstopTierV3)
-    : BackstopTierV3.BlndXlm;
+    : BackstopTierV3.FirstLoss;
 }
 
 export const BackstopV3QueueItem: React.FC<{
@@ -151,7 +150,7 @@ export const BackstopV3QueueItem: React.FC<{
               {toBalance(tierPool.sharesToTokens(q4w.amount), 7)}
             </Typography>
             <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
-              {getTierLabel(tier)}
+              {getTierLabel(tier, tierPool.data.token, tierPool.data.asset)}
             </Typography>
           </Box>
           <Typography variant="h4" sx={{ marginRight: '6px' }}>
@@ -191,14 +190,14 @@ export const BackstopV3Action: React.FC<{
     isLoading,
     txInclusionFee,
   } = useWallet();
-  const { data: backstop } = useBackstopV3();
   const { data: loadedPool, refetch: refetchPool } = useBackstopPool(poolMeta);
   const { data: loadedUser, refetch: refetchUser } = useBackstopPoolUser(poolMeta);
   const { data: horizonAccount } = useHorizonAccount();
   const pool = loadedPool instanceof BackstopPoolV3 ? loadedPool : undefined;
   const user = loadedUser instanceof BackstopPoolUserV3 ? loadedUser : undefined;
+  const tierPool = pool?.tiers[tier];
   const { data: walletBalance } = useTokenBalance(
-    backstop?.tokens[tier],
+    tierPool?.data.token,
     undefined,
     horizonAccount
   );
@@ -206,7 +205,6 @@ export const BackstopV3Action: React.FC<{
   const [simulation, setSimulation] = useState<rpc.Api.SimulateTransactionResponse>();
   const [loadingEstimate, setLoadingEstimate] = useState(false);
 
-  const tierPool = pool?.tier(tier);
   const depositedTokens =
     tierPool && user ? tierPool.sharesToTokens(user.balance(tier).shares) : BigInt(0);
   const available = type === 'deposit' ? walletBalance ?? BigInt(0) : depositedTokens;
@@ -308,7 +306,9 @@ export const BackstopV3Action: React.FC<{
     [amount, available, isLoading, loadingEstimate, simulation]
   );
 
-  if (backstop === undefined || pool === undefined) return <Skeleton />;
+  if (pool === undefined || tierPool === undefined) return <Skeleton />;
+
+  const tierLabel = getTierLabel(tier, tierPool.data.token, tierPool.data.asset);
 
   return (
     <>
@@ -318,20 +318,23 @@ export const BackstopV3Action: React.FC<{
             Backstop tier
           </Typography>
           <ToggleSlider
-            options={[
-              { optionName: BackstopTierV3.BlndXlm, palette: theme.palette.backstop },
-              { optionName: BackstopTierV3.BlndUsdc, palette: theme.palette.backstop },
-              { optionName: BackstopTierV3.Usdc, palette: theme.palette.backstop },
-            ]}
-            text={['BLND:XLM', 'BLND:USDC', 'USDC']}
+            options={pool.configuredTiers.map((optionTier) => ({
+              optionName: optionTier,
+              palette: theme.palette.backstop,
+            }))}
+            text={pool.configuredTiers.map((optionTier) => {
+              const data = pool.tier(optionTier).data;
+              return getTierLabel(optionTier, data.token, data.asset);
+            })}
             icons={
               type === 'q4w'
-                ? [BackstopTierV3.BlndXlm, BackstopTierV3.BlndUsdc, BackstopTierV3.Usdc].map(
-                    (optionTier) => ({
-                      src: getTierIcon(optionTier),
-                      alt: getTierLabel(optionTier),
-                    })
-                  )
+                ? pool.configuredTiers.map((optionTier) => {
+                    const data = pool.tier(optionTier).data;
+                    return {
+                      src: getTierIcon(optionTier, data.token, data.asset),
+                      alt: getTierLabel(optionTier, data.token, data.asset),
+                    };
+                  })
                 : undefined
             }
             selected={tier}
@@ -352,7 +355,7 @@ export const BackstopV3Action: React.FC<{
               Available {type === 'deposit' ? 'in wallet' : 'to queue'}
             </Typography>
             <Typography variant="h4" color={theme.palette.backstop.main}>
-              {toBalance(available, 7)} {getTierLabel(tier)}
+              {toBalance(available, 7)} {tierLabel}
             </Typography>
           </Box>
         </Section>
@@ -379,7 +382,7 @@ export const BackstopV3Action: React.FC<{
               }}
             >
               <InputBar
-                symbol={getTierLabel(tier)}
+                symbol={tierLabel}
                 value={amount}
                 onValueChange={(value) => {
                   setAmount(value);
@@ -415,7 +418,7 @@ export const BackstopV3Action: React.FC<{
             <TxOverview>
               <Value
                 title={type === 'deposit' ? 'Amount to deposit' : 'Amount to queue'}
-                value={`${amount} ${getTierLabel(tier)}`}
+                value={`${amount} ${tierLabel}`}
               />
               <Value
                 title={
@@ -431,8 +434,8 @@ export const BackstopV3Action: React.FC<{
               {type === 'deposit' ? (
                 <ValueChange
                   title="Your total deposit"
-                  curValue={`${toBalance(depositedTokens, 7)} ${getTierLabel(tier)}`}
-                  newValue={`${toBalance(estimatedDepositedTokens, 7)} ${getTierLabel(tier)}`}
+                  curValue={`${toBalance(depositedTokens, 7)} ${tierLabel}`}
+                  newValue={`${toBalance(estimatedDepositedTokens, 7)} ${tierLabel}`}
                 />
               ) : (
                 <>
@@ -446,8 +449,8 @@ export const BackstopV3Action: React.FC<{
                   />
                   <ValueChange
                     title="Your total amount queued"
-                    curValue={`${toBalance(queuedTokens, 7)} ${getTierLabel(tier)}`}
-                    newValue={`${toBalance(estimatedQueuedTokens, 7)} ${getTierLabel(tier)}`}
+                    curValue={`${toBalance(queuedTokens, 7)} ${tierLabel}`}
+                    newValue={`${toBalance(estimatedQueuedTokens, 7)} ${tierLabel}`}
                   />
                 </>
               )}

@@ -8,6 +8,7 @@ import { ViewType, useSettings } from '../../contexts';
 import { TxStatus, TxType, useWallet } from '../../contexts/wallet';
 import { useHorizonAccount, useManagedBackstopToken, useTokenBalance } from '../../hooks/api';
 import { RPC_DEBOUNCE_DELAY, useDebouncedState } from '../../hooks/debounce';
+import { PoolMeta } from '../../hooks/types';
 import { estJoinPool, estLPTokenViaJoin } from '../../utils/comet';
 import { toBalance } from '../../utils/formatter';
 import { scaleInputToBigInt } from '../../utils/scval';
@@ -25,10 +26,11 @@ import { TxOverview } from '../common/TxOverview';
 import { Value } from '../common/Value';
 import { ValueChange } from '../common/ValueChange';
 
-export const BackstopJoinAnvil: React.FC<{ tier?: BackstopTierV3; version?: Version }> = ({
-  tier,
-  version,
-}) => {
+export const BackstopJoinAnvil: React.FC<{
+  tier?: BackstopTierV3;
+  version?: Version;
+  poolMeta?: PoolMeta;
+}> = ({ tier, version, poolMeta }) => {
   const theme = useTheme();
   const { viewType } = useSettings();
   const {
@@ -42,7 +44,7 @@ export const BackstopJoinAnvil: React.FC<{ tier?: BackstopTierV3; version?: Vers
   } = useWallet();
 
   const { backstopToken, blndTokenId, cometPoolId, lpSymbol, pairSymbol, pairTokenId } =
-    useManagedBackstopToken(tier, version);
+    useManagedBackstopToken(tier, version, poolMeta);
   const pairAsset = pairSymbol === 'XLM' ? Asset.native() : USDC_ASSET;
   const { data: horizonAccount } = useHorizonAccount();
   const { data: blndBalanceRes } = useTokenBalance(blndTokenId, BLND_ASSET, horizonAccount);

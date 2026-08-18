@@ -6,6 +6,7 @@ import {
   BackstopPoolUserEst,
   BackstopPoolUserV3,
   BackstopPoolV3,
+  BackstopAssetV3,
   BackstopTierV3,
   FixedMath,
 } from '@blend-capital/blend-sdk';
@@ -38,7 +39,7 @@ export function getBackstopUserValue(
   user: BackstopPoolUser | BackstopPoolUserV3
 ): number {
   if (pool instanceof BackstopPoolV3 && user instanceof BackstopPoolUserV3) {
-    return Object.values(BackstopTierV3).reduce((total, tier) => {
+    return pool.configuredTiers.reduce((total, tier) => {
       const tierPool = pool.tier(tier);
       if (tierPool.data.shares === BigInt(0) || tierPool.data.tokens === BigInt(0)) return total;
       const userTokens = tierPool.sharesToTokens(user.balance(tier).shares);
@@ -51,24 +52,40 @@ export function getBackstopUserValue(
   return BackstopPoolUserEst.build(backstop, pool, user).totalSpotValue;
 }
 
-export function getTierLabel(tier: BackstopTierV3): string {
-  switch (tier) {
-    case BackstopTierV3.BlndXlm:
-      return 'BLND-XLM LP';
-    case BackstopTierV3.BlndUsdc:
-      return 'BLND-USDC LP';
-    case BackstopTierV3.Usdc:
-      return 'USDC';
+export function getTierLabel(
+  tier: BackstopTierV3,
+  token?: string,
+  asset?: BackstopAssetV3
+): string {
+  if (asset === BackstopAssetV3.BlndXlm || token === process.env.NEXT_PUBLIC_BLND_XLM_COMET) {
+    return 'BLND-XLM LP';
   }
+  if (asset === BackstopAssetV3.BlndUsdc || token === process.env.NEXT_PUBLIC_BLND_USDC_COMET) {
+    return 'BLND-USDC LP';
+  }
+  if (asset === BackstopAssetV3.Usdc || token === process.env.NEXT_PUBLIC_USDC_TOKEN) return 'USDC';
+  if (asset === BackstopAssetV3.Xlm) return 'XLM';
+  return tier === BackstopTierV3.FirstLoss
+    ? 'First-loss asset'
+    : tier === BackstopTierV3.SecondLoss
+    ? 'Second-loss asset'
+    : 'Third-loss asset';
 }
 
-export function getTierIcon(tier: BackstopTierV3): string {
-  switch (tier) {
-    case BackstopTierV3.BlndXlm:
-      return '/icons/tokens/xlm.svg';
-    case BackstopTierV3.BlndUsdc:
-      return '/icons/tokens/blndusdclp.svg';
-    case BackstopTierV3.Usdc:
-      return '/icons/tokens/soroban.svg';
+export function getTierIcon(
+  _tier: BackstopTierV3,
+  token?: string,
+  asset?: BackstopAssetV3
+): string {
+  if (
+    asset === BackstopAssetV3.BlndXlm ||
+    asset === BackstopAssetV3.Xlm ||
+    token === process.env.NEXT_PUBLIC_BLND_XLM_COMET
+  ) {
+    return '/icons/tokens/xlm.svg';
   }
+  if (asset === BackstopAssetV3.BlndUsdc || token === process.env.NEXT_PUBLIC_BLND_USDC_COMET) {
+    return '/icons/tokens/blndusdclp.svg';
+  }
+  return '/icons/tokens/soroban.svg';
 }

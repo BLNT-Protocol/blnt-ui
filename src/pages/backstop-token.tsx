@@ -1,4 +1,9 @@
-import { BackstopTierV3, Version } from '@blend-capital/blend-sdk';
+import {
+  BackstopAssetV3,
+  BackstopPoolV3,
+  BackstopTierV3,
+  Version,
+} from '@blend-capital/blend-sdk';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { Box, IconButton, Typography, useTheme } from '@mui/material';
 import type { NextPage } from 'next';
@@ -15,7 +20,13 @@ import { Skeleton } from '../components/common/Skeleton';
 import { StackedText } from '../components/common/StackedText';
 import { ToggleButton } from '../components/common/ToggleButton';
 import { ViewType, useSettings } from '../contexts';
-import { useHorizonAccount, useManagedBackstopToken, useTokenBalance } from '../hooks/api';
+import {
+  useHorizonAccount,
+  useBackstopPool,
+  useManagedBackstopToken,
+  usePoolMeta,
+  useTokenBalance,
+} from '../hooks/api';
 import { getTierIcon } from '../utils/backstop';
 import { toBalance } from '../utils/formatter';
 import { BLND_ASSET, USDC_ASSET } from '../utils/token_display';
@@ -25,15 +36,42 @@ const BackstopToken: NextPage = () => {
   const router = useRouter();
   const { showJoinPool, setShowJoinPool, viewType } = useSettings();
   const requestedTier = typeof router.query.tier === 'string' ? router.query.tier : undefined;
-  const tier =
-    requestedTier === BackstopTierV3.BlndXlm || requestedTier === BackstopTierV3.BlndUsdc
-      ? requestedTier
-      : undefined;
+  const tier = Object.values(BackstopTierV3).includes(requestedTier as BackstopTierV3)
+    ? (requestedTier as BackstopTierV3)
+    : undefined;
   const version = router.query.version === Version.V2 ? Version.V2 : Version.V1;
-  const unsupportedTier = requestedTier !== undefined && tier === undefined;
+  const poolId = typeof router.query.poolId === 'string' ? router.query.poolId : undefined;
+  const {
+    data: poolMeta,
+    isError: isPoolMetaError,
+  } = usePoolMeta(poolId ?? '', tier !== undefined);
+  const {
+    data: loadedBackstopPool,
+    isError: isBackstopPoolError,
+  } = useBackstopPool(poolMeta, tier !== undefined && poolMeta?.version === Version.V3);
+  const v3Pool = loadedBackstopPool instanceof BackstopPoolV3 ? loadedBackstopPool : undefined;
+  const configuredTier = tier === undefined ? undefined : v3Pool?.tiers[tier];
+  const isManageableTier =
+    configuredTier?.data.asset === BackstopAssetV3.BlndXlm ||
+    configuredTier?.data.asset === BackstopAssetV3.BlndUsdc;
+  const invalidTier = requestedTier !== undefined && tier === undefined;
+  const tierLoadError = tier !== undefined && (isPoolMetaError || isBackstopPoolError);
+  const tierRouteLoading =
+    tier !== undefined &&
+    poolId !== undefined &&
+    !isPoolMetaError &&
+    !isBackstopPoolError &&
+    (poolMeta === undefined || (poolMeta.version === Version.V3 && v3Pool === undefined));
+  const unconfiguredTier =
+    tier !== undefined &&
+    !tierLoadError &&
+    !tierRouteLoading &&
+    (poolId === undefined || poolMeta?.version !== Version.V3 || configuredTier === undefined);
+  const plainAssetTier = configuredTier !== undefined && !isManageableTier;
   const { blndTokenId, cometPoolId, lpSymbol, pairSymbol, pairTokenId } = useManagedBackstopToken(
     tier,
-    version
+    version,
+    poolMeta
   );
   const pairAsset = pairSymbol === 'XLM' ? Asset.native() : USDC_ASSET;
   const { data: horizonAccount } = useHorizonAccount();
@@ -59,20 +97,34 @@ const BackstopToken: NextPage = () => {
 
   const title =
     viewType === ViewType.MOBILE ? lpSymbol : `80:20 ${lpSymbol.replace(' LP', '')} Liquidity Pool`;
-  const headerIcon = tier === undefined ? '/icons/pageicons/blnd_usdc_pair.svg' : getTierIcon(tier);
-  const lpIcon = tier === undefined ? '/icons/tokens/blndusdclp.svg' : getTierIcon(tier);
+  const headerIcon =
+    tier === undefined ? '/icons/pageicons/blnd_usdc_pair.svg' : getTierIcon(tier, cometPoolId);
+  const lpIcon =
+    tier === undefined ? '/icons/tokens/blndusdclp.svg' : getTierIcon(tier, cometPoolId);
 
-  if (!router.isReady) return <Skeleton />;
+  if (!router.isReady || tierRouteLoading) return <Skeleton />;
 
-  if (unsupportedTier) {
+  if (invalidTier || tierLoadError || unconfiguredTier || plainAssetTier) {
+    const title = tierLoadError
+      ? 'Unable to load this backstop tier.'
+      : invalidTier
+      ? 'This backstop tier is not supported.'
+      : unconfiguredTier
+      ? 'This tier is not configured for this pool.'
+      : 'This backstop tier is not an LP token.';
+    const detail = tierLoadError
+      ? 'Return to the pool backstop and try again.'
+      : plainAssetTier
+      ? 'Plain assets can be deposited directly and do not have Comet liquidity to manage.'
+      : 'Return to the pool backstop and select one of its configured LP tiers.';
     return (
       <Row>
         <Section width={SectionSize.FULL} sx={{ padding: '12px' }}>
           <GoBackButton />
           <Box>
-            <Typography variant="h4">This backstop tier is not an LP token.</Typography>
+            <Typography variant="h4">{title}</Typography>
             <Typography variant="body2" color={theme.palette.text.secondary}>
-              Plain assets can be deposited directly and do not have Comet liquidity to manage.
+              {detail}
             </Typography>
           </Box>
         </Section>
@@ -200,9 +252,9 @@ const BackstopToken: NextPage = () => {
       </Row>
 
       {showJoinPool ? (
-        <BackstopJoinAnvil key={tier ?? version} tier={tier} version={version} />
+        <BackstopJoinAnvil key={tier ?? version} tier={tier} version={version} poolMeta={poolMeta} />
       ) : (
-        <BackstopExitAnvil key={tier ?? version} tier={tier} version={version} />
+        <BackstopExitAnvil key={tier ?? version} tier={tier} version={version} poolMeta={poolMeta} />
       )}
     </>
   );

@@ -1,4 +1,5 @@
 import {
+  BackstopPoolV3,
   ContractErrorType,
   MigrationStatusV3,
   parseError,
@@ -13,6 +14,7 @@ import { rpc } from '@stellar/stellar-sdk';
 import { useSettings, ViewType } from '../../contexts';
 import { useWallet } from '../../contexts/wallet';
 import {
+  useBackstopPool,
   useHorizonAccount,
   useBackstopV3,
   usePool,
@@ -41,6 +43,14 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
   const { data: poolMeta } = usePoolMeta(poolId);
   const isV3 = poolMeta?.version === Version.V3;
   const { data: backstopV3 } = useBackstopV3(isV3);
+  const { data: loadedBackstopPool } = useBackstopPool(poolMeta, isV3);
+  const backstopPoolV3 =
+    loadedBackstopPool instanceof BackstopPoolV3 ? loadedBackstopPool : undefined;
+  const showPoolEmissionsClaim =
+    !isV3 ||
+    (backstopPoolV3?.configuredTiers.some(
+      (tier) => backstopPoolV3.tier(tier).data.blnd_emission_eligible
+    ) ?? false);
   const { data: account, refetch: refechAccount } = useHorizonAccount();
   const { data: pool } = usePool(poolMeta);
   const { data: poolOracle } = usePoolOracle(pool);
@@ -70,7 +80,11 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
     refetch: refetchSim,
   } = useSimulateOperation(
     sim_op,
-    claimedTokens.length > 0 && sim_op !== '' && connected && v3PoolClaimsAvailable
+    showPoolEmissionsClaim &&
+      claimedTokens.length > 0 &&
+      sim_op !== '' &&
+      connected &&
+      v3PoolClaimsAvailable
   );
 
   if (pool === undefined || userPoolData === undefined) {
@@ -281,7 +295,7 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
           display: 'flex',
           flexDirection: 'row',
           alignItems: 'center',
-          width: isRegularViewType ? '50%' : '100%',
+          width: isRegularViewType && showPoolEmissionsClaim ? '50%' : '100%',
           justifyContent: isRegularViewType ? undefined : 'space-between',
         }}
       >
@@ -325,9 +339,11 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
           <BorrowCapRing borrowLimit={userEst?.borrowLimit} />
         </Box>
       </Box>
-      <Box sx={{ width: isRegularViewType ? '45%' : '100%', display: 'flex' }}>
-        {renderClaimButton()}
-      </Box>
+      {showPoolEmissionsClaim && (
+        <Box sx={{ width: isRegularViewType ? '45%' : '100%', display: 'flex' }}>
+          {renderClaimButton()}
+        </Box>
+      )}
     </Row>
   );
 };
