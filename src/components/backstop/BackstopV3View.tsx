@@ -456,7 +456,7 @@ const V3TierCard: React.FC<V3TierCardProps> = ({ poolMeta, pool, user, tier, wal
           to={{ pathname: '/backstop-deposit', query: { poolId: poolMeta.id, tier } }}
         >
           <OpaqueButton palette={theme.palette.backstop} sx={{ width: '100%', padding: '6px' }}>
-            Deposit
+            Backstop Deposit
           </OpaqueButton>
         </LinkBox>
         <LinkBox
@@ -464,7 +464,7 @@ const V3TierCard: React.FC<V3TierCardProps> = ({ poolMeta, pool, user, tier, wal
           to={{ pathname: '/backstop-q4w', query: { poolId: poolMeta.id, tier } }}
         >
           <OpaqueButton palette={theme.palette.positive} sx={{ width: '100%', padding: '6px' }}>
-            Withdrawal
+            Queue for Withdrawal
           </OpaqueButton>
         </LinkBox>
       </Row>
