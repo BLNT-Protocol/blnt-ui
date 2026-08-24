@@ -3,6 +3,7 @@ import { MenuItem, Typography } from '@mui/material';
 import React from 'react';
 import { useTokenMetadata } from '../../hooks/api';
 import { toCompactAddress } from '../../utils/formatter';
+import { ReserveStatusIcons } from './ReserveStatusIcons';
 import { TokenIcon } from './TokenIcon';
 
 interface ReserveDropdownItemProps {
@@ -38,6 +39,7 @@ const ReserveDropdownItem: React.FC<ReserveDropdownItemProps> = ({
       <Typography variant="h3" sx={{ marginLeft: '12px' }}>
         {`${text} ${symbol}`}
       </Typography>
+      <ReserveStatusIcons reserve={reserve} sx={{ marginLeft: '6px' }} />
     </MenuItem>
   );
 };

@@ -41,6 +41,7 @@ import { TxFeeSelector } from '../common/TxFeeSelector';
 import { TxOverview } from '../common/TxOverview';
 import { Value } from '../common/Value';
 import { ValueChange } from '../common/ValueChange';
+import { BackstopAuthorizationStatus } from './BackstopAuthorizationStatus';
 
 export function parseBackstopTier(value: string | string[] | undefined): BackstopTierV3 {
   return Object.values(BackstopTierV3).includes(value as BackstopTierV3)
@@ -314,9 +315,10 @@ export const BackstopV3Action: React.FC<{
     <>
       <Row>
         <Section width={SectionSize.FULL} sx={{ padding: '12px', flexDirection: 'column' }}>
-          <Typography variant="body2" sx={{ marginBottom: '6px' }}>
-            Backstop tier
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', marginBottom: '6px' }}>
+            <Typography variant="body2">Backstop tier</Typography>
+            <BackstopAuthorizationStatus tierPool={tierPool} sx={{ marginLeft: '6px' }} />
+          </Box>
           <ToggleSlider
             options={pool.configuredTiers.map((optionTier) => ({
               optionName: optionTier,

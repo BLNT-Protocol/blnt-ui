@@ -26,7 +26,7 @@ import { RPC_DEBOUNCE_DELAY, useDebouncedState } from '../../hooks/debounce';
 import { toBalance, toCompactAddress, toPercentage } from '../../utils/formatter';
 import { requiresTrustline } from '../../utils/horizon';
 import { scaleInputToBigInt } from '../../utils/scval';
-import { getErrorFromSim, SubmitError } from '../../utils/txSim';
+import { getErrorFromSim, getReserveDeauthorizedError, SubmitError } from '../../utils/txSim';
 import { AnvilAlert } from '../common/AnvilAlert';
 import { InputBar } from '../common/InputBar';
 import { InputButton } from '../common/InputButton';
@@ -130,6 +130,10 @@ export const BorrowAnvil: React.FC<ReserveComponentProps> = ({ poolId, assetId }
 
   const { isSubmitDisabled, isMaxDisabled, reason, disabledType, extraContent, isError } =
     useMemo(() => {
+      const authorizationError = getReserveDeauthorizedError(reserve);
+      if (authorizationError) {
+        return authorizationError;
+      }
       const hasTokenTrustline = !requiresTrustline(horizonAccount, tokenMetadata?.asset);
       if (!hasTokenTrustline) {
         let submitError: SubmitError = {
@@ -144,7 +148,7 @@ export const BorrowAnvil: React.FC<ReserveComponentProps> = ({ poolId, assetId }
       } else {
         return getErrorFromSim(toBorrow, decimals, loading, simResponse, undefined);
       }
-    }, [toBorrow, simResponse, poolUser, horizonAccount]);
+    }, [toBorrow, simResponse, poolUser, horizonAccount, reserve?.isPoolDeauthorized]);
 
   if (pool === undefined || reserve === undefined) {
     return <Skeleton />;

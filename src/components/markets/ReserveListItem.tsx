@@ -3,6 +3,7 @@ import { Box, BoxProps, Typography, useTheme } from '@mui/material';
 import { ViewType, useSettings } from '../../contexts';
 import * as formatter from '../../utils/formatter';
 import { LinkBox } from '../common/LinkBox';
+import { ReserveStatusIcons } from '../common/ReserveStatusIcons';
 import { TokenHeader } from '../common/TokenHeader';
 import { StackedApy } from './StackedApy';
 
@@ -49,7 +50,11 @@ export const ReserveListItem: React.FC<ReserveListItemProps> = ({
           type: 'alt',
         }}
       >
-        <TokenHeader assetId={reserve.assetId} sx={{ width: tableWidth }} />
+        <TokenHeader
+          assetId={reserve.assetId}
+          status={<ReserveStatusIcons reserve={reserve} />}
+          sx={{ width: tableWidth }}
+        />
         <Box
           sx={{
             width: tableWidth,

@@ -16,6 +16,7 @@ import { LinkBox } from '../common/LinkBox';
 import { OpaqueButton } from '../common/OpaqueButton';
 import { PoolComponentProps } from '../common/PoolComponentProps';
 import { RateDisplay } from '../common/RateDisplay';
+import { ReserveStatusIcons } from '../common/ReserveStatusIcons';
 import { TokenHeader } from '../common/TokenHeader';
 
 export interface BorrowPositionCardProps extends PoolComponentProps {
@@ -86,6 +87,7 @@ export const BorrowPositionCard: React.FC<BorrowPositionCardProps> = ({
         iconSize="24px"
         hideDomain
         assetId={reserve.assetId}
+        status={<ReserveStatusIcons reserve={reserve} />}
         sx={{ width: tableWidth }}
       />
       <Box

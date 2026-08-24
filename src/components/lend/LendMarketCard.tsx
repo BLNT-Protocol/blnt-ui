@@ -17,6 +17,7 @@ import { CustomButton } from '../common/CustomButton';
 import { LinkBox } from '../common/LinkBox';
 import { PoolComponentProps } from '../common/PoolComponentProps';
 import { RateDisplay } from '../common/RateDisplay';
+import { ReserveStatusIcons } from '../common/ReserveStatusIcons';
 import { SectionBase } from '../common/SectionBase';
 import { TokenHeader } from '../common/TokenHeader';
 
@@ -85,7 +86,11 @@ export const LendMarketCard: React.FC<LendMarketCardProps> = ({
             },
           }}
         >
-          <TokenHeader assetId={reserve.assetId} sx={{ width: tableWidth }} />
+          <TokenHeader
+            assetId={reserve.assetId}
+            status={<ReserveStatusIcons reserve={reserve} />}
+            sx={{ width: tableWidth }}
+          />
           <Box
             sx={{
               width: tableWidth,

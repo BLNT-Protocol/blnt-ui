@@ -27,7 +27,7 @@ import { RPC_DEBOUNCE_DELAY, useDebouncedState } from '../../hooks/debounce';
 import { toBalance, toCompactAddress, toPercentage } from '../../utils/formatter';
 import { getAssetReserve } from '../../utils/horizon';
 import { scaleInputToBigInt } from '../../utils/scval';
-import { getErrorFromSim, SubmitError } from '../../utils/txSim';
+import { getErrorFromSim, getReserveDeauthorizedError, SubmitError } from '../../utils/txSim';
 import { AnvilAlert } from '../common/AnvilAlert';
 import { InputBar } from '../common/InputBar';
 import { InputButton } from '../common/InputButton';
@@ -105,7 +105,10 @@ export const RepayAnvil: React.FC<ReserveComponentProps> = ({ poolId, assetId })
 
   const { isSubmitDisabled, isMaxDisabled, reason, disabledType, isError, extraContent } =
     useMemo(() => {
-      if (stellar_reserve_amount > 0 && Number(toRepay) > freeUserBalanceScaled) {
+      const authorizationError = getReserveDeauthorizedError(reserve);
+      if (authorizationError) {
+        return authorizationError;
+      } else if (stellar_reserve_amount > 0 && Number(toRepay) > freeUserBalanceScaled) {
         return {
           isSubmitDisabled: true,
           isError: true,
@@ -120,7 +123,7 @@ export const RepayAnvil: React.FC<ReserveComponentProps> = ({ poolId, assetId })
       } else {
         return getErrorFromSim(toRepay, decimals, loading, simResponse, undefined);
       }
-    }, [freeUserBalanceScaled, toRepay, simResponse, loading]);
+    }, [freeUserBalanceScaled, toRepay, simResponse, loading, reserve?.isPoolDeauthorized]);
 
   if (pool === undefined || reserve === undefined) {
     return <Skeleton />;

@@ -1,4 +1,5 @@
 import { Box, BoxProps, Typography } from '@mui/material';
+import { ReactNode } from 'react';
 
 import { useTokenMetadata } from '../../hooks/api';
 import { toCompactAddress } from '../../utils/formatter';
@@ -8,6 +9,7 @@ export interface TokenHeaderProps extends BoxProps {
   assetId: string;
   hideDomain?: boolean;
   iconSize?: string;
+  status?: ReactNode;
 }
 
 export const TokenHeader: React.FC<TokenHeaderProps> = ({
@@ -15,6 +17,7 @@ export const TokenHeader: React.FC<TokenHeaderProps> = ({
   sx,
   hideDomain,
   iconSize,
+  status,
   ...props
 }) => {
   const { data: tokenMetadata } = useTokenMetadata(assetId);
@@ -53,7 +56,10 @@ export const TokenHeader: React.FC<TokenHeaderProps> = ({
           alignItems: 'flex-start',
         }}
       >
-        <Typography variant="body1">{tokenMetadata.symbol}</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <Typography variant="body1">{tokenMetadata.symbol}</Typography>
+          {status}
+        </Box>
         {!hideDomain && (
           <Typography variant="body2" color="text.secondary">
             {domain}

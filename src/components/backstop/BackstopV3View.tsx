@@ -49,6 +49,7 @@ import { StackedText } from '../common/StackedText';
 import { PoolExploreBar } from '../pool/PoolExploreBar';
 import { PoolHealthBanner } from '../pool/PoolHealthBanner';
 import { BackstopAPR } from './BackstopAPR';
+import { BackstopAuthorizationStatus } from './BackstopAuthorizationStatus';
 import { BackstopV3QueueItem } from './BackstopV3Action';
 
 const MIGRATION_PHASE_LABELS: Record<MigrationPhaseV3, string> = {
@@ -406,7 +407,10 @@ const V3TierCard: React.FC<V3TierCardProps> = ({ poolMeta, pool, user, tier, wal
             alt={tierLabel}
             sx={{ height: '30px', width: '30px', marginRight: '12px' }}
           />
-          <Typography variant="h4">{tierLabel}</Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <Typography variant="h4">{tierLabel}</Typography>
+            <BackstopAuthorizationStatus tierPool={tierPool} sx={{ marginTop: '2px' }} />
+          </Box>
         </Box>
         <Box sx={{ textAlign: 'center', width: '33.33%' }}>
           <Typography variant="body2" color={theme.palette.text.secondary}>

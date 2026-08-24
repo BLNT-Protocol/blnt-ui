@@ -8,6 +8,7 @@ import { CustomButton } from './CustomButton';
 import { LetterIcon } from './LetterIcon';
 import { PoolComponentProps } from './PoolComponentProps';
 import ReserveDropdownItem from './ReserveDropdownItem';
+import { ReserveStatusIcons } from './ReserveStatusIcons';
 import { TokenIcon } from './TokenIcon';
 
 export interface ReserveDropdown extends PoolComponentProps {
@@ -67,6 +68,7 @@ export const ReserveDropdown: React.FC<ReserveDropdown> = ({ action, poolId, act
               <Typography variant="h3" sx={{ marginLeft: '12px' }}>
                 {`${capitalizedAction} ${symbol}`}
               </Typography>
+              <ReserveStatusIcons reserve={activeReserve} sx={{ marginLeft: '6px' }} />
             </>
           ) : (
             <>
