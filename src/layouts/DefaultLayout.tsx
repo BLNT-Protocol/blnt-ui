@@ -8,6 +8,7 @@ import { OverlayModalTOS } from '../components/common/OverlayModalTOS';
 import { Row } from '../components/common/Row';
 import { WalletWarning } from '../components/common/WalletWarning';
 import { NavBar } from '../components/nav/NavBar';
+import { PoolAccessBanner } from '../components/pool/PoolAccessBanner';
 import { useSettings, ViewType } from '../contexts';
 import { useWallet } from '../contexts/wallet';
 import { useBackstop, useFeeStats, usePoolMeta } from '../hooks/api';
@@ -78,6 +79,7 @@ export default function DefaultLayout({ children }: { children: ReactNode }) {
                 <FaucetBanner poolId={faucet_pool} />
               </Row>
             )}
+            <PoolAccessBanner poolMeta={poolMeta} />
             {children}
             <OverlayModal />
             <OverlayModalTOS />

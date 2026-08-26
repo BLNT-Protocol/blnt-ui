@@ -1,12 +1,14 @@
 import {
   BackstopPoolUserV3,
   BackstopPoolV3,
+  BACKSTOP_DEPOSIT_ALLOWED,
   BackstopTierV3,
   BackstopContractV3,
   BackstopTierPoolV3,
   parseResult,
   Q4WV3,
   TierBackstopActionArgsV3,
+  Version,
 } from '@blend-capital/blend-sdk';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { Box, CircularProgress, Typography, useTheme } from '@mui/material';
@@ -20,6 +22,7 @@ import {
   useBackstopPool,
   useBackstopPoolUser,
   useHorizonAccount,
+  usePoolPermissions,
   useTokenBalance,
   useSimulateOperation,
 } from '../../hooks/api';
@@ -28,7 +31,7 @@ import { PoolMeta } from '../../hooks/types';
 import { getTierIcon, getTierLabel } from '../../utils/backstop';
 import { toBalance, toTimeSpan } from '../../utils/formatter';
 import { bigintToInput, scaleInputToBigInt } from '../../utils/scval';
-import { getErrorFromSim } from '../../utils/txSim';
+import { getErrorFromSim, getPoolPermissionError } from '../../utils/txSim';
 import { AnvilAlert } from '../common/AnvilAlert';
 import { InputBar } from '../common/InputBar';
 import { InputButton } from '../common/InputButton';
@@ -60,7 +63,20 @@ export const BackstopV3QueueItem: React.FC<{
   const { connected, walletAddress, backstopDequeueWithdrawal, backstopWithdraw, restore } =
     useWallet();
   const [now, setNow] = useState(Math.floor(Date.now() / 1000));
+  const {
+    data: poolPermissions,
+    isError: isPermissionError,
+    isLoading: isPermissionLoading,
+  } = usePoolPermissions(poolMeta);
   const unlocked = q4w.exp === BigInt(0) || q4w.exp <= BigInt(now);
+  const dequeuePermission = getPoolPermissionError(
+    poolMeta.version === Version.V3 && poolMeta.accessController !== undefined,
+    poolPermissions,
+    BACKSTOP_DEPOSIT_ALLOWED,
+    isPermissionLoading,
+    isPermissionError,
+    'dequeueing a backstop withdrawal'
+  );
   const args: TierBackstopActionArgsV3 = {
     tier,
     from: walletAddress,
@@ -163,7 +179,10 @@ export const BackstopV3QueueItem: React.FC<{
         onClick={act}
         palette={theme.palette.positive}
         disabled={
-          !connected || isLoading || (!isRestore && (isError || (!unlocked && !canDequeue)))
+          !connected ||
+          isLoading ||
+          (!isRestore &&
+            (isError || (!unlocked && (!canDequeue || dequeuePermission !== undefined))))
         }
         sx={{ height: '35px', width: '108px', margin: '12px' }}
       >
@@ -192,6 +211,11 @@ export const BackstopV3Action: React.FC<{
     txInclusionFee,
   } = useWallet();
   const { data: loadedPool, refetch: refetchPool } = useBackstopPool(poolMeta);
+  const {
+    data: poolPermissions,
+    isError: isPermissionError,
+    isLoading: isPermissionLoading,
+  } = usePoolPermissions(poolMeta);
   const { data: loadedUser, refetch: refetchUser } = useBackstopPoolUser(poolMeta);
   const { data: horizonAccount } = useHorizonAccount();
   const pool = loadedPool instanceof BackstopPoolV3 ? loadedPool : undefined;
@@ -285,6 +309,17 @@ export const BackstopV3Action: React.FC<{
   const { isSubmitDisabled, isMaxDisabled, reason, disabledType, isError, extraContent } = useMemo(
     () =>
       getErrorFromSim(amount, 7, isLoading || loadingEstimate, simulation, () => {
+        if (type === 'deposit') {
+          const permissionError = getPoolPermissionError(
+            poolMeta.version === Version.V3 && poolMeta.accessController !== undefined,
+            poolPermissions,
+            BACKSTOP_DEPOSIT_ALLOWED,
+            isPermissionLoading,
+            isPermissionError,
+            'backstop deposits'
+          );
+          if (permissionError) return permissionError;
+        }
         const requested = scaleInputToBigInt(amount, 7);
         if (requested <= BigInt(0)) {
           return {
@@ -304,7 +339,19 @@ export const BackstopV3Action: React.FC<{
         }
         return {};
       }),
-    [amount, available, isLoading, loadingEstimate, simulation]
+    [
+      amount,
+      available,
+      isLoading,
+      loadingEstimate,
+      simulation,
+      type,
+      poolMeta.version,
+      poolMeta.accessController,
+      poolPermissions,
+      isPermissionLoading,
+      isPermissionError,
+    ]
   );
 
   if (pool === undefined || tierPool === undefined) return <Skeleton />;

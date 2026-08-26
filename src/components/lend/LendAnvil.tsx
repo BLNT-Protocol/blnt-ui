@@ -6,7 +6,10 @@ import {
   Positions,
   PositionsEstimate,
   RequestType,
+  RESERVE_BORROW_ALLOWED,
+  RESERVE_SUPPLY_ALLOWED,
   SubmitArgs,
+  Version,
 } from '@blend-capital/blend-sdk';
 import { Box, Typography, useTheme } from '@mui/material';
 import { rpc } from '@stellar/stellar-sdk';
@@ -19,6 +22,7 @@ import {
   usePool,
   usePoolMeta,
   usePoolOracle,
+  usePoolPermissions,
   usePoolUser,
   useTokenBalance,
   useTokenMetadata,
@@ -27,7 +31,12 @@ import { RPC_DEBOUNCE_DELAY, useDebouncedState } from '../../hooks/debounce';
 import { toBalance, toCompactAddress, toPercentage } from '../../utils/formatter';
 import { getAssetReserve } from '../../utils/horizon';
 import { scaleInputToBigInt } from '../../utils/scval';
-import { getErrorFromSim, getReserveDeauthorizedError, SubmitError } from '../../utils/txSim';
+import {
+  getErrorFromSim,
+  getPoolPermissionError,
+  getReserveDeauthorizedError,
+  SubmitError,
+} from '../../utils/txSim';
 import { AnvilAlert } from '../common/AnvilAlert';
 import { InputBar } from '../common/InputBar';
 import { InputButton } from '../common/InputButton';
@@ -52,6 +61,11 @@ export const LendAnvil: React.FC<ReserveComponentProps> = ({ poolId, assetId }) 
 
   const { data: poolMeta } = usePoolMeta(poolId);
   const { data: pool } = usePool(poolMeta);
+  const {
+    data: poolPermissions,
+    isError: isPermissionError,
+    isLoading: isPermissionLoading,
+  } = usePoolPermissions(poolMeta);
   const { data: poolOracle } = usePoolOracle(pool);
   const { data: poolUser } = usePoolUser(pool);
   const { data: tokenMetadata } = useTokenMetadata(assetId);
@@ -80,8 +94,18 @@ export const LendAnvil: React.FC<ReserveComponentProps> = ({ poolId, assetId }) 
 
   const { isSubmitDisabled, isMaxDisabled, reason, disabledType, isError, extraContent } =
     useMemo(() => {
+      const permissionError = getPoolPermissionError(
+        poolMeta?.version === Version.V3 && poolMeta.accessController !== undefined,
+        poolPermissions,
+        RESERVE_SUPPLY_ALLOWED | RESERVE_BORROW_ALLOWED,
+        isPermissionLoading,
+        isPermissionError,
+        'collateral supply'
+      );
       const authorizationError = getReserveDeauthorizedError(reserve);
-      if (authorizationError) {
+      if (permissionError) {
+        return permissionError;
+      } else if (authorizationError) {
         return authorizationError;
       } else if (stellar_reserve_amount > 0 && Number(toLend) > freeUserBalanceScaled) {
         return {
@@ -98,7 +122,18 @@ export const LendAnvil: React.FC<ReserveComponentProps> = ({ poolId, assetId }) 
       } else {
         return getErrorFromSim(toLend, decimals, loading, simResponse, undefined);
       }
-    }, [freeUserBalanceScaled, toLend, simResponse, loading, reserve?.isPoolDeauthorized]);
+    }, [
+      freeUserBalanceScaled,
+      toLend,
+      simResponse,
+      loading,
+      reserve?.isPoolDeauthorized,
+      poolMeta?.version,
+      poolMeta?.accessController,
+      poolPermissions,
+      isPermissionLoading,
+      isPermissionError,
+    ]);
 
   const handleSubmitTransaction = async (sim: boolean) => {
     if (toLend && connected && poolMeta && reserve) {

@@ -1,4 +1,5 @@
 import {
+  ALL_ACCESS_PERMISSIONS,
   Backstop,
   BackstopAssetV3,
   BackstopConfig,
@@ -15,6 +16,7 @@ import {
   BackstopV3,
   ErrorTypes,
   getOracleDecimals,
+  loadAccessPermissions,
   loadMigrationLifecycleV3,
   MigrationLifecycleV3,
   Network,
@@ -264,6 +266,34 @@ export function usePool(
         }
       }
     },
+  });
+}
+
+/**
+ * Loads the connected wallet's immutable pool-local access flags. Open pools
+ * return all standardized bits without invoking an external controller.
+ */
+export function usePoolPermissions(
+  poolMeta: PoolMeta | undefined,
+  enabled: boolean = true
+): UseQueryResult<number, Error> {
+  const { network } = useSettings();
+  const { walletAddress, connected } = useWallet();
+  const controller = poolMeta?.version === Version.V3 ? poolMeta.accessController : undefined;
+
+  return useQuery({
+    staleTime: DEFAULT_STALE_TIME,
+    queryKey: ['poolPermissions', poolMeta?.id, controller, walletAddress],
+    enabled: enabled && poolMeta !== undefined && connected && walletAddress !== '',
+    placeholderData: controller === undefined ? ALL_ACCESS_PERMISSIONS : 0,
+    queryFn: async () => {
+      if (poolMeta === undefined || controller === undefined) {
+        return ALL_ACCESS_PERMISSIONS;
+      }
+      const result = await loadAccessPermissions(network, controller, poolMeta.id, walletAddress);
+      return result.permissions;
+    },
+    retry: 1,
   });
 }
 
