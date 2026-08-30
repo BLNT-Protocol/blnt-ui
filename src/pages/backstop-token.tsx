@@ -52,8 +52,8 @@ const BackstopToken: NextPage = () => {
   const v3Pool = loadedBackstopPool instanceof BackstopPoolV3 ? loadedBackstopPool : undefined;
   const configuredTier = tier === undefined ? undefined : v3Pool?.tiers[tier];
   const isManageableTier =
-    configuredTier?.data.asset === BackstopAssetV3.BlndXlm ||
-    configuredTier?.data.asset === BackstopAssetV3.BlndUsdc;
+    configuredTier?.data.asset === BackstopAssetV3.BlntXlm ||
+    configuredTier?.data.asset === BackstopAssetV3.BlntUsdc;
   const invalidTier = requestedTier !== undefined && tier === undefined;
   const tierLoadError = tier !== undefined && (isPoolMetaError || isBackstopPoolError);
   const tierRouteLoading =

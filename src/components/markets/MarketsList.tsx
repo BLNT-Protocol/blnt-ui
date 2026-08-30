@@ -25,7 +25,7 @@ export interface MarketListProps extends BoxProps {
 }
 
 export const MarketsList: React.FC<MarketListProps> = ({ version }) => {
-  const { blockedPools } = useSettings();
+  const { blockedPools, configuredPools } = useSettings();
   const { data: backstop } = useBackstop(version);
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -44,9 +44,17 @@ export const MarketsList: React.FC<MarketListProps> = ({ version }) => {
     .sort();
 
   const rewardZone = [...(backstop?.config?.rewardZone ?? [])].reverse();
+  const configuredPoolIds = useMemo(
+    () => configuredPools.filter((pool) => pool.version === version).map((pool) => pool.id),
+    [configuredPools, version]
+  );
+  const visiblePoolIds = useMemo(
+    () => Array.from(new Set([...rewardZone, ...configuredPoolIds])),
+    [rewardZone, configuredPoolIds]
+  );
   const safeRewardZone = useMemo(
-    () => rewardZone.filter((poolId) => !blockedPools.includes(poolId)),
-    [rewardZone, blockedPools]
+    () => visiblePoolIds.filter((poolId) => !blockedPools.includes(poolId)),
+    [visiblePoolIds, blockedPools]
   );
 
   useEffect(() => {

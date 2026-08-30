@@ -25,7 +25,7 @@ import {
 } from '../../hooks/api';
 import { toBalance, toPercentage } from '../../utils/formatter';
 import { requiresTrustline } from '../../utils/horizon';
-import { BLND_ASSET } from '../../utils/token_display';
+import { BLND_ASSET, BLNT_ASSET } from '../../utils/token_display';
 import { CustomButton } from '../common/CustomButton';
 import { FlameIcon } from '../common/FlameIcon';
 import { Icon } from '../common/Icon';
@@ -42,6 +42,7 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
 
   const { data: poolMeta } = usePoolMeta(poolId);
   const isV3 = poolMeta?.version === Version.V3;
+  const emissionsAsset = isV3 ? BLNT_ASSET : BLND_ASSET;
   const { data: backstopV3 } = useBackstopV3(isV3);
   const { data: loadedBackstopPool } = useBackstopPool(poolMeta, isV3);
   const backstopPoolV3 =
@@ -49,7 +50,7 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
   const showPoolEmissionsClaim =
     !isV3 ||
     (backstopPoolV3?.configuredTiers.some(
-      (tier) => backstopPoolV3.tier(tier).data.blnd_emission_eligible
+      (tier) => backstopPoolV3.tier(tier).data.blnt_emission_eligible
     ) ?? false);
   const { data: account, refetch: refechAccount } = useHorizonAccount();
   const { data: pool } = usePool(poolMeta);
@@ -91,7 +92,7 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
     return <Skeleton />;
   }
 
-  const hasBLNDTrustline = !requiresTrustline(account, BLND_ASSET);
+  const hasEmissionsTrustline = !requiresTrustline(account, emissionsAsset);
   const isRestore =
     isLoading === false && simResult !== undefined && rpc.Api.isSimulationRestore(simResult);
   const isError =
@@ -116,7 +117,7 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
 
   async function handleCreateTrustlineClick() {
     if (connected) {
-      await createTrustlines([BLND_ASSET]);
+      await createTrustlines([emissionsAsset]);
       refechAccount();
     }
   }
@@ -154,7 +155,7 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
                   <StackedText
                     title="Claim Pool Emissions"
                     titleColor="inherit"
-                    text={`${toBalance(emissions)} BLND`}
+                    text={`${toBalance(emissions)} ${emissionsAsset.code}`}
                     textColor="inherit"
                     type="large"
                   />
@@ -168,7 +169,7 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
           </Box>
         </Tooltip>
       );
-    } else if (hasBLNDTrustline && !isRestore && !isError) {
+    } else if (hasEmissionsTrustline && !isRestore && !isError) {
       return (
         <CustomButton
           sx={{
@@ -187,7 +188,7 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
             <StackedText
               title="Claim Pool Emissions"
               titleColor="inherit"
-              text={`${toBalance(emissions)} BLND`}
+              text={`${toBalance(emissions)} ${emissionsAsset.code}`}
               textColor="inherit"
               type="large"
             />
@@ -203,8 +204,8 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
       if (isRestore) {
         buttonText = 'Restore Data';
         onClick = handleRestore;
-      } else if (!hasBLNDTrustline) {
-        buttonText = 'Add BLND Trustline';
+      } else if (!hasEmissionsTrustline) {
+        buttonText = `Add ${emissionsAsset.code} Trustline`;
         onClick = handleCreateTrustlineClick;
       } else if (isError) {
         const claimError = parseError(simResult);

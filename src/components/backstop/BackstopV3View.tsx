@@ -7,23 +7,18 @@ import {
   BackstopTierV3,
   BackstopV3,
   FixedMath,
-  MigrationBlockerV3,
-  MigrationLifecycleV3,
-  MigrationPhaseV3,
   MigrationStatusV3,
   parseError,
   parseResult,
 } from '@blend-capital/blend-sdk';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
-import { Box, Tooltip, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { rpc } from '@stellar/stellar-sdk';
 import { useWallet } from '../../contexts/wallet';
 import {
   useBackstopPool,
   useBackstopPoolUser,
   useBackstopClaimableV3,
-  useBackstopMigrationLifecycleV3,
   useBackstopTierTokenV3,
   useBackstopV3,
   useHorizonAccount,
@@ -34,7 +29,7 @@ import { PoolMeta } from '../../hooks/types';
 import theme from '../../theme';
 import { getTierIcon, getTierLabel } from '../../utils/backstop';
 import { estSingleSidedDeposit } from '../../utils/comet';
-import { toBalance, toPercentage, toTimeSpan } from '../../utils/formatter';
+import { toBalance, toPercentage } from '../../utils/formatter';
 import { CustomButton } from '../common/CustomButton';
 import { Divider } from '../common/Divider';
 import { FlameIcon } from '../common/FlameIcon';
@@ -51,130 +46,6 @@ import { PoolHealthBanner } from '../pool/PoolHealthBanner';
 import { BackstopAPR } from './BackstopAPR';
 import { BackstopAuthorizationStatus } from './BackstopAuthorizationStatus';
 import { BackstopV3QueueItem } from './BackstopV3Action';
-
-const MIGRATION_PHASE_LABELS: Record<MigrationPhaseV3, string> = {
-  [MigrationPhaseV3.Pending]: 'Pending',
-  [MigrationPhaseV3.BackfillOpen]: 'Backfill open',
-  [MigrationPhaseV3.QueueScheduled]: 'Queue scheduled',
-  [MigrationPhaseV3.QueueAttested]: 'Queue attested',
-  [MigrationPhaseV3.ReadyToSwap]: 'Ready to swap',
-  [MigrationPhaseV3.AwaitingActivation]: 'Awaiting activation',
-  [MigrationPhaseV3.FundingBackfill]: 'Funding backfill',
-  [MigrationPhaseV3.Complete]: 'Complete',
-};
-
-const MIGRATION_PHASE_DESCRIPTIONS: Record<MigrationPhaseV3, string> = {
-  [MigrationPhaseV3.Pending]: 'Migration backfill has not started.',
-  [MigrationPhaseV3.BackfillOpen]:
-    'Migration backfill is accruing; before migration, its backstop allocation applies only to BLND:USDC.',
-  [MigrationPhaseV3.QueueScheduled]:
-    'The emitter recipient swap is queued and awaiting its attestation window.',
-  [MigrationPhaseV3.QueueAttested]:
-    'The candidate has attested the compatible emitter queue and is awaiting its unlock.',
-  [MigrationPhaseV3.ReadyToSwap]:
-    'The queue is unlocked and swap_backstop() is available while the candidate remains qualified.',
-  [MigrationPhaseV3.AwaitingActivation]:
-    'The emitter points to the candidate, which must activate migration before its deadline.',
-  [MigrationPhaseV3.FundingBackfill]:
-    'Migration is active while the scheduled BLND backfill is transferred to the candidate.',
-  [MigrationPhaseV3.Complete]:
-    'Emitter migration is active, the scheduled backfill is fully funded, and claims are available.',
-};
-
-const MigrationPhaseTooltip: React.FC = () => (
-  <Tooltip
-    arrow
-    placement="top"
-    enterTouchDelay={0}
-    leaveTouchDelay={5000}
-    componentsProps={{ tooltip: { sx: { maxWidth: '520px' } } }}
-    title={
-      <Box sx={{ padding: '4px' }}>
-        {Object.values(MigrationPhaseV3).map((phase) => (
-          <Box key={phase} sx={{ marginBottom: phase === MigrationPhaseV3.Complete ? 0 : '8px' }}>
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              {MIGRATION_PHASE_LABELS[phase]}
-            </Typography>
-            <Typography variant="caption">{MIGRATION_PHASE_DESCRIPTIONS[phase]}</Typography>
-          </Box>
-        ))}
-      </Box>
-    }
-  >
-    <HelpOutlineIcon
-      aria-label="Migration lifecycle phases"
-      tabIndex={0}
-      sx={{
-        color: 'text.secondary',
-        width: '16px',
-        marginLeft: '4px',
-        height: '16px',
-        marginBottom: '2px',
-      }}
-    />
-  </Tooltip>
-);
-
-function timeUntil(target: bigint | undefined, timestamp: bigint): string | undefined {
-  if (target === undefined || target <= timestamp) return undefined;
-  return toTimeSpan(Number(target - timestamp));
-}
-
-function migrationLifecycleDetail(lifecycle: MigrationLifecycleV3): string {
-  switch (lifecycle.phase) {
-    case MigrationPhaseV3.Pending:
-      return 'Migration backfill has not started.';
-    case MigrationPhaseV3.BackfillOpen:
-      if (lifecycle.blocker === MigrationBlockerV3.UnexpectedEmitterRecipient) {
-        return 'The emitter points to an unrecognized backstop.';
-      }
-      return 'Migration backfill is accruing; its backstop allocation currently applies only to BLND:USDC.';
-    case MigrationPhaseV3.QueueScheduled: {
-      if (lifecycle.blocker === MigrationBlockerV3.InvalidQueue) {
-        return 'The emitter queue does not target this candidate and its BLND:XLM token.';
-      }
-      if (lifecycle.blocker === MigrationBlockerV3.AttestationWindowExpired) {
-        return 'The queue attestation window expired; a fresh compatible queue is required.';
-      }
-      if (lifecycle.blocker === MigrationBlockerV3.AttestationRequired) {
-        return 'The queue is in its attestation window; candidate distribute() must attest it.';
-      }
-      const untilAttestation = timeUntil(lifecycle.attestationStart, lifecycle.timestamp);
-      return untilAttestation === undefined
-        ? lifecycle.nextAction ?? 'Waiting for queue attestation.'
-        : `Queue attestation opens in ${untilAttestation}.`;
-    }
-    case MigrationPhaseV3.QueueAttested: {
-      const untilUnlock = timeUntil(lifecycle.queueUnlock, lifecycle.timestamp);
-      return untilUnlock === undefined
-        ? 'The emitter queue is attested and awaiting unlock.'
-        : `Emitter queue unlocks in ${untilUnlock}.`;
-    }
-    case MigrationPhaseV3.ReadyToSwap:
-      return lifecycle.blocker === MigrationBlockerV3.InsufficientBlndUsdc
-        ? 'Swap blocked: restore the candidate’s strictly greater BLND:USDC balance.'
-        : 'The emitter queue is unlocked and swap_backstop() is available.';
-    case MigrationPhaseV3.AwaitingActivation: {
-      if (lifecycle.blocker === MigrationBlockerV3.MissingAttestation) {
-        return 'Activation is blocked because the required queue attestation is missing.';
-      }
-      if (lifecycle.blocker === MigrationBlockerV3.ActivationWindowExpired) {
-        return 'The candidate activation window has expired.';
-      }
-      const untilDeadline = timeUntil(lifecycle.activationDeadline, lifecycle.timestamp);
-      return untilDeadline === undefined
-        ? 'Candidate distribute() must activate migration.'
-        : `Candidate activation is required within ${untilDeadline}.`;
-    }
-    case MigrationPhaseV3.FundingBackfill:
-      return `${toBalance(lifecycle.fundedBackfill, 7)} of ${toBalance(
-        lifecycle.scheduledBackfill,
-        7
-      )} BLND funded.`;
-    case MigrationPhaseV3.Complete:
-      return 'Emitter migration is active and backfill is funded.';
-  }
-}
 
 interface V3ClaimButtonProps {
   backstop: BackstopV3;
@@ -303,7 +174,7 @@ const V3ClaimButton: React.FC<V3ClaimButtonProps> = ({ backstop, poolMeta, pool,
               )}
               {!claimsAvailable && (
                 <Typography variant="body2" sx={{ color: theme.palette.warning.main }}>
-                  {tierData.asset === BackstopAssetV3.BlndUsdc
+                  {tierData.asset === BackstopAssetV3.BlntUsdc
                     ? 'Pending V3 migration'
                     : 'Not eligible for backfill'}
                 </Typography>
@@ -388,7 +259,7 @@ const V3TierCard: React.FC<V3TierCardProps> = ({ poolMeta, pool, user, tier, wal
     0
   );
   const weightPercentage = `${((tierPool.data.take_rate_weight * 100) / totalWeight).toFixed(2)}%`;
-  const canManage = tierPool.data.blnd_emission_eligible;
+  const canManage = tierPool.data.blnt_emission_eligible;
   const userValue =
     tierPool.data.tokens > BigInt(0)
       ? FixedMath.toFloat((userTokens * tierPool.data.value) / tierPool.data.tokens, 7)
@@ -515,13 +386,8 @@ export const BackstopV3View: React.FC<{ poolMeta: PoolMeta }> = ({ poolMeta }) =
   const { data: loadedPool } = useBackstopPool(poolMeta);
   const pool = loadedPool instanceof BackstopPoolV3 ? loadedPool : undefined;
   const emissionEligibleTiers =
-    pool?.configuredTiers.filter((tier) => pool.tier(tier).data.blnd_emission_eligible) ?? [];
+    pool?.configuredTiers.filter((tier) => pool.tier(tier).data.blnt_emission_eligible) ?? [];
   const hasEmissionEligibleTier = emissionEligibleTiers.length > 0;
-  const {
-    data: migrationLifecycle,
-    isLoading: isMigrationLifecycleLoading,
-    isError: isMigrationLifecycleError,
-  } = useBackstopMigrationLifecycleV3(backstop, hasEmissionEligibleTier);
   const { data: loadedUser } = useBackstopPoolUser(poolMeta);
   const { data: horizonAccount } = useHorizonAccount();
   const user = loadedUser instanceof BackstopPoolUserV3 ? loadedUser : undefined;
@@ -542,23 +408,6 @@ export const BackstopV3View: React.FC<{ poolMeta: PoolMeta }> = ({ poolMeta }) =
   );
 
   if (backstop === undefined || pool === undefined) return <Skeleton />;
-  const migrationDisplay =
-    migrationLifecycle !== undefined
-      ? {
-          status: MIGRATION_PHASE_LABELS[migrationLifecycle.phase],
-          detail: migrationLifecycleDetail(migrationLifecycle),
-        }
-      : isMigrationLifecycleLoading
-      ? {
-          status: 'Checking status',
-          detail: 'Loading candidate and emitter migration state.',
-        }
-      : {
-          status: 'Status unavailable',
-          detail: isMigrationLifecycleError
-            ? 'Unable to load live emitter migration context.'
-            : 'The migration lifecycle is not configured.',
-        };
   const walletBalances = {
     [BackstopTierV3.FirstLoss]: firstLossBalance,
     [BackstopTierV3.SecondLoss]: secondLossBalance,
@@ -596,49 +445,21 @@ export const BackstopV3View: React.FC<{ poolMeta: PoolMeta }> = ({ poolMeta }) =
         </Section>
       </Row>
       {hasEmissionEligibleTier && (
-        <>
-          <Row>
-            <Section
-              width={SectionSize.FULL}
-              sx={{ flexDirection: 'column', paddingTop: '12px' }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', margin: '6px' }}>
-                <Typography variant="body2">V3 migration status</Typography>
-                <MigrationPhaseTooltip />
-              </Box>
-              <Box
-                sx={{
-                  width: SectionSize.FULL,
-                  margin: '6px',
-                  padding: '12px',
-                  color: theme.palette.text.primary,
-                  backgroundColor: theme.palette.background.default,
-                  borderRadius: '5px',
-                }}
-              >
-                <Typography variant="h4">{migrationDisplay.status}</Typography>
-                <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-                  {migrationDisplay.detail}
-                </Typography>
-              </Box>
-            </Section>
-          </Row>
-          <Row>
-            <Section
-              width={SectionSize.FULL}
-              sx={{ flexDirection: 'column', paddingTop: '12px' }}
-            >
-              <Typography variant="body2" sx={{ margin: '6px' }}>
-                Emissions to claim
-              </Typography>
-              {emissionEligibleTiers.map((tier) => (
-                <Row key={tier}>
-                  <V3ClaimButton backstop={backstop} poolMeta={poolMeta} pool={pool} tier={tier} />
-                </Row>
-              ))}
-            </Section>
-          </Row>
-        </>
+        <Row>
+          <Section
+            width={SectionSize.FULL}
+            sx={{ flexDirection: 'column', paddingTop: '12px' }}
+          >
+            <Typography variant="body2" sx={{ margin: '6px' }}>
+              Emissions to claim
+            </Typography>
+            {emissionEligibleTiers.map((tier) => (
+              <Row key={tier}>
+                <V3ClaimButton backstop={backstop} poolMeta={poolMeta} pool={pool} tier={tier} />
+              </Row>
+            ))}
+          </Section>
+        </Row>
       )}
       {pool.configuredTiers.map((tier) => (
         <V3TierCard

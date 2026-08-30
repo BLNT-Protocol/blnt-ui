@@ -494,9 +494,9 @@ export function useBackstopTierTokenV3(
   const pool = loadedPool instanceof BackstopPoolV3 ? loadedPool : undefined;
   const tierData = pool?.tiers[tier]?.data;
   const lpTokenId = tierData?.token;
-  const isBlndXlm = tierData?.asset === BackstopAssetV3.BlndXlm;
-  const isBlndUsdc = tierData?.asset === BackstopAssetV3.BlndUsdc;
-  const pairTokenId = isBlndXlm
+  const isBlntXlm = tierData?.asset === BackstopAssetV3.BlntXlm;
+  const isBlntUsdc = tierData?.asset === BackstopAssetV3.BlntUsdc;
+  const pairTokenId = isBlntXlm
     ? Asset.native().contractId(network.passphrase)
     : USDC_TOKEN_ID;
   return useQuery({
@@ -504,13 +504,13 @@ export function useBackstopTierTokenV3(
     queryKey: ['backstopTierTokenV3', tier, lpTokenId],
     enabled:
       enabled &&
-      tierData?.blnd_emission_eligible === true &&
-      (isBlndXlm || isBlndUsdc) &&
+      tierData?.blnt_emission_eligible === true &&
+      (isBlntXlm || isBlntUsdc) &&
       lpTokenId !== undefined &&
       BLND_TOKEN_ID !== '' &&
       pairTokenId !== '',
     queryFn: async () => {
-      if (lpTokenId === undefined || (!isBlndXlm && !isBlndUsdc)) {
+      if (lpTokenId === undefined || (!isBlntXlm && !isBlntUsdc)) {
         throw new Error('The selected v3 tier is not a Comet LP token.');
       }
       return BackstopToken.load(network, lpTokenId, BLND_TOKEN_ID, pairTokenId);
@@ -542,7 +542,7 @@ export function useManagedBackstopToken(
   const v3TierData = v3Pool?.tiers[effectiveTier]?.data;
   const v3TierToken = v3TierData?.token;
   const { data: v3BackstopToken } = useBackstopTierTokenV3(effectiveTier, poolMeta, isV3);
-  const pairIsXlm = v3TierData?.asset === BackstopAssetV3.BlndXlm;
+  const pairIsXlm = v3TierData?.asset === BackstopAssetV3.BlntXlm;
 
   return {
     backstopToken: isV3 ? v3BackstopToken : legacyBackstop?.backstopToken,
@@ -550,7 +550,7 @@ export function useManagedBackstopToken(
     cometPoolId: isV3
       ? v3TierToken ?? ''
       : legacyBackstop?.config.backstopTkn ?? '',
-    lpSymbol: pairIsXlm ? 'BLND-XLM LP' : 'BLND-USDC LP',
+    lpSymbol: pairIsXlm ? 'BLNT-XLM LP' : 'BLNT-USDC LP',
     pairSymbol: pairIsXlm ? 'XLM' : 'USDC',
     pairTokenId: pairIsXlm
       ? Asset.native().contractId(network.passphrase)

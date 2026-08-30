@@ -57,11 +57,11 @@ export function getTierLabel(
   token?: string,
   asset?: BackstopAssetV3
 ): string {
-  if (asset === BackstopAssetV3.BlndXlm || token === process.env.NEXT_PUBLIC_BLND_XLM_COMET) {
-    return 'BLND-XLM LP';
+  if (asset === BackstopAssetV3.BlntXlm || token === process.env.NEXT_PUBLIC_BLND_XLM_COMET) {
+    return 'BLNT-XLM LP';
   }
-  if (asset === BackstopAssetV3.BlndUsdc || token === process.env.NEXT_PUBLIC_BLND_USDC_COMET) {
-    return 'BLND-USDC LP';
+  if (asset === BackstopAssetV3.BlntUsdc || token === process.env.NEXT_PUBLIC_BLND_USDC_COMET) {
+    return 'BLNT-USDC LP';
   }
   if (asset === BackstopAssetV3.Usdc || token === process.env.NEXT_PUBLIC_USDC_TOKEN) return 'USDC';
   if (asset === BackstopAssetV3.Xlm) return 'XLM';
@@ -78,13 +78,13 @@ export function getTierIcon(
   asset?: BackstopAssetV3
 ): string {
   if (
-    asset === BackstopAssetV3.BlndXlm ||
+    asset === BackstopAssetV3.BlntXlm ||
     asset === BackstopAssetV3.Xlm ||
     token === process.env.NEXT_PUBLIC_BLND_XLM_COMET
   ) {
     return '/icons/tokens/xlm.svg';
   }
-  if (asset === BackstopAssetV3.BlndUsdc || token === process.env.NEXT_PUBLIC_BLND_USDC_COMET) {
+  if (asset === BackstopAssetV3.BlntUsdc || token === process.env.NEXT_PUBLIC_BLND_USDC_COMET) {
     return '/icons/tokens/blndusdclp.svg';
   }
   return '/icons/tokens/soroban.svg';

@@ -38,6 +38,7 @@ export interface ISettingsContext {
   getHorizonServer: () => rpc.Server;
   lastPool: TrackedPool | undefined;
   setLastPool: (poolMeta: PoolMeta) => void;
+  configuredPools: TrackedPool[];
   trackedPools: TrackedPool[];
   trackPool: (poolMeta: PoolMeta) => void;
   untrackPool: (id: string) => void;
@@ -193,6 +194,7 @@ export const SettingsProvider = ({ children = null as any }) => {
         getHorizonServer,
         lastPool,
         setLastPool,
+        configuredPools,
         trackedPools,
         trackPool,
         untrackPool,
