@@ -550,7 +550,7 @@ export function useManagedBackstopToken(
     cometPoolId: isV3
       ? v3TierToken ?? ''
       : legacyBackstop?.config.backstopTkn ?? '',
-    lpSymbol: pairIsXlm ? 'BLNT-XLM LP' : 'BLNT-USDC LP',
+    lpSymbol: isV3 ? (pairIsXlm ? 'BLNT-XLM LP' : 'BLNT-USDC LP') : 'BLND-USDC LP',
     pairSymbol: pairIsXlm ? 'XLM' : 'USDC',
     pairTokenId: pairIsXlm
       ? Asset.native().contractId(network.passphrase)
