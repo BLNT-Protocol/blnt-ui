@@ -49,7 +49,7 @@ npm run build:testnet
 
 ## IPFS Deployment
 
-Each release gets deployed to IPFS automatically. To get the latest release, please see the [Releases page](https://github.com/blend-capital/blend-ui/releases).
+Each release gets deployed to IPFS automatically. To get the latest release, please see the [Releases page](https://github.com/levinson/blend-ui/releases).
 
 ## Adding Custom Icons
 

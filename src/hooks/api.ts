@@ -61,6 +61,11 @@ import { useWallet } from '../contexts/wallet';
 import { getContractTokenIcon } from '../external/icon-map';
 import { getTokenMetadataFromTOML, TomlMetadata } from '../external/stellar-toml';
 import { getTokenBalance } from '../external/token';
+import {
+  BackfillEmissionsState,
+  BLNT_BACKFILL_ID,
+  loadBackfillEmissionsState,
+} from '../utils/blnt_backfill';
 import { getOraclePrices } from '../utils/stellar_rpc';
 import { ReserveTokenMetadata } from '../utils/token';
 import { NOT_BLEND_POOL_ERROR_MESSAGE, PoolMeta } from './types';
@@ -95,6 +100,7 @@ export function useQueryClientCacheCleaner(): {
       predicate: (query) =>
         query.queryKey[0] === 'balance' ||
         query.queryKey[0] === 'account' ||
+        query.queryKey[0] === 'backfillEmissions' ||
         query.queryKey[0] === 'sim',
     });
 
@@ -157,6 +163,24 @@ export function useCurrentBlockNumber(): UseQueryResult<number, Error> {
       const data = await rpc.getLatestLedger();
       return data.sequence;
     },
+  });
+}
+
+/**
+ * Fetch the connected wallet's immutable backfill allocation and live vesting state.
+ */
+export function useBackfillEmissions(
+  enabled: boolean = true
+): UseQueryResult<BackfillEmissionsState, Error> {
+  const { network } = useSettings();
+  const { connected, walletAddress } = useWallet();
+
+  return useQuery({
+    staleTime: DEFAULT_STALE_TIME,
+    refetchInterval: DEFAULT_STALE_TIME,
+    queryKey: ['backfillEmissions', BLNT_BACKFILL_ID, walletAddress],
+    enabled: enabled && connected && walletAddress !== '' && BLNT_BACKFILL_ID !== '',
+    queryFn: () => loadBackfillEmissionsState(network, BLNT_BACKFILL_ID, walletAddress),
   });
 }
 

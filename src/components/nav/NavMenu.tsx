@@ -75,7 +75,7 @@ export const NavMenu = () => {
               Settings
             </MenuItem>
           </Link>
-          <a href="https://docs.blend.capital/" target="_blank" rel="noreferrer">
+          <a href="https://docs.blnt.trade/" target="_blank" rel="noreferrer">
             <MenuItem
               onClick={handleClose}
               sx={{ color: '#FFFFFF', justifyContent: 'space-between' }}
@@ -84,7 +84,11 @@ export const NavMenu = () => {
               <OpenInNewIcon fontSize="inherit" />
             </MenuItem>
           </a>
-          <a href="https://github.com/blend-capital" target="_blank" rel="noreferrer">
+          <a
+            href="https://github.com/levinson/blend-contracts-v3"
+            target="_blank"
+            rel="noreferrer"
+          >
             <MenuItem
               onClick={handleClose}
               sx={{ color: '#FFFFFF', justifyContent: 'space-between' }}
@@ -152,7 +156,7 @@ export const NavMenu = () => {
               Settings
             </MenuItem>
           </Link>
-          <a href="https://docs.blend.capital/" target="_blank" rel="noreferrer">
+          <a href="https://docs.blnt.trade/" target="_blank" rel="noreferrer">
             <MenuItem
               onClick={handleClose}
               sx={{ color: '#FFFFFF', justifyContent: 'space-between' }}
@@ -161,7 +165,11 @@ export const NavMenu = () => {
               <OpenInNewIcon fontSize="inherit" />
             </MenuItem>
           </a>
-          <a href="https://github.com/blend-capital" target="_blank" rel="noreferrer">
+          <a
+            href="https://github.com/levinson/blend-contracts-v3"
+            target="_blank"
+            rel="noreferrer"
+          >
             <MenuItem
               onClick={handleClose}
               sx={{ color: '#FFFFFF', justifyContent: 'space-between' }}

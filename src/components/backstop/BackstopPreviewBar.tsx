@@ -1,6 +1,7 @@
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { Box, useTheme } from '@mui/material';
 import { useSettings, ViewType } from '../../contexts';
+import { useWallet } from '../../contexts/wallet';
 import {
   useBackstop,
   useBackstopPool,
@@ -21,6 +22,7 @@ import { PoolStatusBox } from '../pool/PoolStatusBox';
 
 export const BackstopPreviewBar: React.FC<PoolComponentProps> = ({ poolId }) => {
   const { viewType } = useSettings();
+  const { connected } = useWallet();
   const theme = useTheme();
 
   const { data: poolMeta } = usePoolMeta(poolId);
@@ -116,7 +118,13 @@ export const BackstopPreviewBar: React.FC<PoolComponentProps> = ({ poolId }) => 
             <StackedText
               title="Your Backstop Balance"
               titleColor="inherit"
-              text={backstopUserPoolEst !== undefined ? `$${toBalance(backstopUserPoolEst)}` : '--'}
+              text={
+                backstopUserPoolEst !== undefined
+                  ? `$${toBalance(backstopUserPoolEst)}`
+                  : connected
+                  ? '--'
+                  : '$0'
+              }
               textColor="inherit"
               type="large"
             />

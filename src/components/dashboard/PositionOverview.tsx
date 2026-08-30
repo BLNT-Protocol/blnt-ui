@@ -9,7 +9,7 @@ import {
   Version,
 } from '@blend-capital/blend-sdk';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import { Box, SxProps, Theme, Tooltip, Typography, useTheme } from '@mui/material';
+import { Box, SxProps, Theme, Typography, useTheme } from '@mui/material';
 import { rpc } from '@stellar/stellar-sdk';
 import { useSettings, ViewType } from '../../contexts';
 import { useWallet } from '../../contexts/wallet';
@@ -132,42 +132,33 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
   function renderClaimButton() {
     if (isV3 && !v3PoolClaimsAvailable) {
       return (
-        <Tooltip
-          title="V3 pool emissions become claimable after emitter migration and exact backfill funding."
-          placement="top-start"
-          enterTouchDelay={0}
-          enterDelay={500}
-          leaveTouchDelay={3000}
-        >
-          <Box sx={{ width: '100%' }}>
-            <CustomButton
-              sx={{
-                width: '100%',
-                padding: '12px',
-                color: theme.palette.text.primary,
-                backgroundColor: theme.palette.background.paper,
-              }}
-              disabled
-            >
-              <Box sx={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center' }}>
-                <FlameIcon />
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                  <StackedText
-                    title="Claim Pool Emissions"
-                    titleColor="inherit"
-                    text={`${toBalance(emissions)} ${emissionsAsset.code}`}
-                    textColor="inherit"
-                    type="large"
-                  />
-                  <Typography variant="body2" color={theme.palette.warning.main}>
-                    Pending V3 migration
-                  </Typography>
-                </Box>
+        <Box sx={{ width: '100%' }}>
+          <CustomButton
+            sx={{
+              width: '100%',
+              padding: '12px',
+              color: theme.palette.text.primary,
+              backgroundColor: theme.palette.background.paper,
+            }}
+          >
+            <Box sx={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center' }}>
+              <FlameIcon />
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                <StackedText
+                  title="Claim Pool Emissions"
+                  titleColor="inherit"
+                  text={`${toBalance(emissions)} ${emissionsAsset.code}`}
+                  textColor="inherit"
+                  type="large"
+                />
+                <Typography variant="body2" color={theme.palette.warning.main}>
+                  Pending V3 migration
+                </Typography>
               </Box>
-              <ArrowForwardIcon fontSize="inherit" />
-            </CustomButton>
-          </Box>
-        </Tooltip>
+            </Box>
+            <ArrowForwardIcon fontSize="inherit" />
+          </CustomButton>
+        </Box>
       );
     } else if (hasEmissionsTrustline && !isRestore && !isError) {
       return (
@@ -197,9 +188,7 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
         </CustomButton>
       );
     } else {
-      let disabled = false;
       let buttonText = '';
-      let buttonTooltip = undefined;
       let onClick = undefined;
       if (isRestore) {
         buttonText = 'Restore Data';
@@ -209,72 +198,60 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
         onClick = handleCreateTrustlineClick;
       } else if (isError) {
         const claimError = parseError(simResult);
-        buttonText = 'Error checking claim';
-        buttonTooltip = 'Erorr while checking claim amount: ' + ContractErrorType[claimError.type];
-        disabled = true;
+        buttonText = `Error checking claim: ${ContractErrorType[claimError.type]}`;
       }
       return (
-        <Tooltip
-          title={buttonTooltip}
-          placement="top-start"
-          enterTouchDelay={0}
-          enterDelay={500}
-          leaveTouchDelay={3000}
-        >
-          <Box sx={{ width: '100%' }}>
-            <CustomButton
+        <Box sx={{ width: '100%' }}>
+          <CustomButton
+            sx={{
+              width: '100%',
+              padding: '12px',
+              color: theme.palette.text.primary,
+              backgroundColor: theme.palette.background.paper,
+              '&:hover': {
+                color: theme.palette.warning.main,
+              },
+            }}
+            onClick={onClick}
+          >
+            <Box
               sx={{
-                width: '100%',
-                padding: '12px',
-                color: theme.palette.text.primary,
-                backgroundColor: theme.palette.background.paper,
-                '&:hover': {
-                  color: theme.palette.warning.main,
-                },
+                display: 'flex',
+                justifyContent: 'flex-start',
+                alignItems: 'center',
+                gap: '12px',
               }}
-              disabled={disabled}
-              onClick={onClick}
             >
               <Box
                 sx={{
+                  borderRadius: '50%',
+                  backgroundColor: theme.palette.warning.opaque,
+                  width: '32px',
+                  height: '32px',
                   display: 'flex',
-                  justifyContent: 'flex-start',
+                  justifyContent: 'center',
                   alignItems: 'center',
-                  gap: '12px',
                 }}
               >
-                <Box
-                  sx={{
-                    borderRadius: '50%',
-                    backgroundColor: theme.palette.warning.opaque,
-                    width: '32px',
-                    height: '32px',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Icon
-                    alt="BLND Token Icon"
-                    src="/icons/tokens/blnd-yellow.svg"
-                    height="24px"
-                    width="18px"
-                    isCircle={false}
-                  />
-                </Box>
-                <StackedText
-                  title="Claim Pool Emissions"
-                  titleColor="inherit"
-                  text={buttonText}
-                  textColor="inherit"
-                  type="large"
-                  tooltip={buttonTooltip}
+                <Icon
+                  alt="BLND Token Icon"
+                  src="/icons/tokens/blnd-yellow.svg"
+                  height="24px"
+                  width="18px"
+                  isCircle={false}
                 />
               </Box>
-              <ArrowForwardIcon fontSize="inherit" />
-            </CustomButton>
-          </Box>
-        </Tooltip>
+              <StackedText
+                title="Claim Pool Emissions"
+                titleColor="inherit"
+                text={buttonText}
+                textColor="inherit"
+                type="large"
+              />
+            </Box>
+            <ArrowForwardIcon fontSize="inherit" />
+          </CustomButton>
+        </Box>
       );
     }
   }

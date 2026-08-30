@@ -32,6 +32,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import { useLocalStorageState } from '../hooks';
 import { useQueryClientCacheCleaner } from '../hooks/api';
 import { PoolMeta } from '../hooks/types';
+import { BLNT_BACKFILL_ID, buildClaimBackfillOperation } from '../utils/blnt_backfill';
 import { CometClient, CometLiquidityArgs, CometSingleSidedDepositArgs } from '../utils/comet';
 import { useSettings } from './settings';
 
@@ -104,6 +105,11 @@ export interface IWalletContext {
   backstopClaim(
     poolMeta: PoolMeta,
     args: BackstopClaimV1Args | BackstopClaimV2Args | BackstopClaimArgsV3,
+    sim: boolean
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
+  backfillClaim(
+    claimant: string,
+    to: string,
     sim: boolean
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
   cometSingleSidedDeposit(
@@ -189,9 +195,9 @@ async function initializeWalletKit(): Promise<WalletKit> {
       metadata: {
         name: process.env.NEXT_PUBLIC_WALLET_CONNECT_NAME ?? 'Blend',
         description: `Blend is a liquidity protocol primitive, enabling the creation of money markets for any use case.`,
-        url: process.env.NEXT_PUBLIC_WALLET_CONNECT_URL ?? 'https://blend.capital',
+        url: process.env.NEXT_PUBLIC_WALLET_CONNECT_URL ?? 'https://blnt.trade',
         icons: [
-          'https://docs.blend.capital/~gitbook/image?url=https%3A%2F%2F3627113658-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252FlsteMPgIzWJ2y9ruiTJy%252Fuploads%252FVsvCoCALpHWAw8LpU12e%252FBlend%2520Logo%25403x.png%3Falt%3Dmedia%26token%3De8c06118-43b7-4ddd-9580-6c0fc47ce971&width=768&dpr=2&quality=100&sign=f4bb7bc2&sv=1',
+          'https://docs.blnt.trade/~gitbook/image?url=https%3A%2F%2F3627113658-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252FlsteMPgIzWJ2y9ruiTJy%252Fuploads%252FVsvCoCALpHWAw8LpU12e%252FBlend%2520Logo%25403x.png%3Falt%3Dmedia%26token%3De8c06118-43b7-4ddd-9580-6c0fc47ce971&width=768&dpr=2&quality=100&sign=f4bb7bc2&sv=1',
         ],
       },
       allowedChains: [
@@ -779,6 +785,22 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     }
   }
 
+  /** Claim the connected wallet's currently vested BLNT backfill allocation. */
+  async function backfillClaim(
+    claimant: string,
+    to: string,
+    sim: boolean
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
+    if (connected && BLNT_BACKFILL_ID !== '') {
+      const operation = buildClaimBackfillOperation(BLNT_BACKFILL_ID, claimant, to);
+      if (sim) {
+        return await simulateOperation(operation);
+      }
+      await invokeSorobanOperation(operation);
+      cleanWalletCache();
+    }
+  }
+
   /**
    * Execute a single sided deposit against a comet pool
    * @param cometPoolId - The comet pool id
@@ -946,6 +968,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         backstopQueueWithdrawal,
         backstopDequeueWithdrawal,
         backstopClaim,
+        backfillClaim,
         cometSingleSidedDeposit,
         cometJoin,
         cometExit,

@@ -86,12 +86,12 @@ const LegacyBackstop: React.FC<{ poolMeta: PoolMeta; safePoolId: string }> = ({
       : undefined;
 
   const backstopDepositUSD =
-    backstopUserEst?.tokens && backstop?.backstopToken.lpTokenPrice
+    backstopUserEst?.tokens !== undefined && backstop?.backstopToken.lpTokenPrice !== undefined
       ? backstopUserEst?.tokens * backstop.backstopToken.lpTokenPrice
       : undefined;
 
   const lpBalanceUSD =
-    lpBalance && backstop?.backstopToken.lpTokenPrice
+    lpBalance !== undefined && backstop?.backstopToken.lpTokenPrice !== undefined
       ? (Number(lpBalance) / 1e7) * backstop.backstopToken.lpTokenPrice
       : undefined;
 
@@ -449,14 +449,14 @@ const LegacyBackstop: React.FC<{ poolMeta: PoolMeta; safePoolId: string }> = ({
             <Box sx={{ display: 'flex', flexDirection: 'column' }}>
               <Box sx={{ display: 'flex', flexDirection: 'row' }}>
                 <Typography variant="h4" sx={{ marginRight: '6px' }}>
-                  {toBalance(lpBalance, 7)}
+                  {toBalance(connected ? lpBalance : BigInt(0), 7)}
                 </Typography>
                 <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
                   BLND-USDC LP
                 </Typography>
               </Box>
               <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
-                {`$${toBalance(lpBalanceUSD)}`}
+                {`$${toBalance(connected ? lpBalanceUSD : 0)}`}
               </Typography>
             </Box>
           </Box>
@@ -522,14 +522,14 @@ const LegacyBackstop: React.FC<{ poolMeta: PoolMeta; safePoolId: string }> = ({
                 <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                   <Box sx={{ display: 'flex', flexDirection: 'row' }}>
                     <Typography variant="h4" sx={{ marginRight: '6px' }}>
-                      {toBalance(backstopUserEst?.tokens)}
+                      {toBalance(connected ? backstopUserEst?.tokens : 0)}
                     </Typography>
                     <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
                       BLND-USDC LP
                     </Typography>
                   </Box>
                   <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
-                    {`$${toBalance(backstopDepositUSD)}`}
+                    {`$${toBalance(connected ? backstopDepositUSD : 0)}`}
                   </Typography>
                 </Box>
               </Box>

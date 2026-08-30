@@ -8,7 +8,7 @@ export const PoolOnIceBanner = () => {
   return (
     <OpaqueButton
       onClick={() =>
-        window.open(`https://docs.blend.capital/pool-creators/pool-management#on-ice`, '_blank')
+        window.open(`https://docs.blnt.trade/pool-creators/pool-management#on-ice`, '_blank')
       }
       palette={theme.palette.warning}
       sx={{

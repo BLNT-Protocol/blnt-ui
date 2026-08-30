@@ -1,4 +1,4 @@
-import { FixedMath, PoolEstimate, PositionsEstimate } from '@blend-capital/blend-sdk';
+import { FixedMath, PoolEstimate, PositionsEstimate, Version } from '@blend-capital/blend-sdk';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { Box, Typography, useTheme } from '@mui/material';
 import type { NextPage } from 'next';
@@ -12,6 +12,7 @@ import { Row } from '../components/common/Row';
 import { Section, SectionSize } from '../components/common/Section';
 import { ToggleButton } from '../components/common/ToggleButton';
 import { TooltipText } from '../components/common/TooltipText';
+import { BackfillEmissions } from '../components/dashboard/BackfillEmissions';
 import { PositionOverview } from '../components/dashboard/PositionOverview';
 import { LendMarketList } from '../components/lend/LendMarketList';
 import { LendPositionList } from '../components/lend/LendPositionList';
@@ -82,6 +83,12 @@ const Dashboard: NextPage = () => {
       <Divider />
       <BackstopPreviewBar poolId={safePoolId} />
       <Divider />
+      {poolMeta?.version === Version.V3 && (
+        <>
+          <BackfillEmissions />
+          <Divider />
+        </>
+      )}
       <Row>
         <Box sx={{ paddingLeft: '6px' }}>
           <Typography variant="h2" sx={{ padding: '6px' }}>

@@ -9,7 +9,7 @@ export const TOS = () => {
       <Typography variant="body2" sx={{ marginBottom: '12px' }}>
         Please review these Terms of Use (“Terms”) carefully, as they set forth the legally binding
         terms and conditions that govern your use and access to our web-hosted user interface
-        located at https://mainnet.blend.capital (the “App” or “Blend”), including related
+        located at https://mainnet.blnt.trade (the “App” or “Blend”), including related
         trademarks, software code, and other intellectual property. The App provides access to a
         decentralized protocol on the Stellar blockchain that allows suppliers and borrowers of
         certain cryptoassets to participate in decentralized money markets. These Terms expressly

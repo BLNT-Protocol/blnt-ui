@@ -12,7 +12,7 @@ export const OverlayModalTOS: React.FC = () => {
     setShowTosModal(false);
   };
   const handleCancel = () => {
-    window.open(`https://blend.capital`, '_self');
+    window.open(`https://blnt.trade`, '_self');
     window.close();
   };
   useEffect(() => {

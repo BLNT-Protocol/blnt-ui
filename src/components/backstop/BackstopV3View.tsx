@@ -382,6 +382,7 @@ const V3TierCard: React.FC<V3TierCardProps> = ({ poolMeta, pool, user, tier, wal
 };
 
 export const BackstopV3View: React.FC<{ poolMeta: PoolMeta }> = ({ poolMeta }) => {
+  const { connected } = useWallet();
   const { data: backstop } = useBackstopV3();
   const { data: loadedPool } = useBackstopPool(poolMeta);
   const pool = loadedPool instanceof BackstopPoolV3 ? loadedPool : undefined;
@@ -409,9 +410,9 @@ export const BackstopV3View: React.FC<{ poolMeta: PoolMeta }> = ({ poolMeta }) =
 
   if (backstop === undefined || pool === undefined) return <Skeleton />;
   const walletBalances = {
-    [BackstopTierV3.FirstLoss]: firstLossBalance,
-    [BackstopTierV3.SecondLoss]: secondLossBalance,
-    [BackstopTierV3.ThirdLoss]: thirdLossBalance,
+    [BackstopTierV3.FirstLoss]: connected ? firstLossBalance : BigInt(0),
+    [BackstopTierV3.SecondLoss]: connected ? secondLossBalance : BigInt(0),
+    [BackstopTierV3.ThirdLoss]: connected ? thirdLossBalance : BigInt(0),
   };
 
   return (

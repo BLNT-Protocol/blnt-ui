@@ -9,7 +9,7 @@ export const PoolFrozenBanner = () => {
   return (
     <OpaqueButton
       onClick={() =>
-        window.open(`https://docs.blend.capital/pool-creators/pool-management#frozen`, '_blank')
+        window.open(`https://docs.blnt.trade/pool-creators/pool-management#frozen`, '_blank')
       }
       palette={theme.palette.error}
       sx={{
