@@ -61,29 +61,11 @@ export const NavMenu = () => {
               Auctions
             </MenuItem>
           </Link>
-          <a href="https://core.allbridge.io/" target="_blank" rel="noreferrer">
-            <MenuItem
-              onClick={handleClose}
-              sx={{ color: '#FFFFFF', justifyContent: 'space-between' }}
-            >
-              <Typography>Bridge USDC</Typography>
-              <OpenInNewIcon fontSize="inherit" />
-            </MenuItem>
-          </a>
           <Link href="/settings">
             <MenuItem onClick={handleClose} sx={{ color: '#FFFFFF' }}>
               Settings
             </MenuItem>
           </Link>
-          <a href="https://docs.blnt.trade/" target="_blank" rel="noreferrer">
-            <MenuItem
-              onClick={handleClose}
-              sx={{ color: '#FFFFFF', justifyContent: 'space-between' }}
-            >
-              <Typography>Docs</Typography>
-              <OpenInNewIcon fontSize="inherit" />
-            </MenuItem>
-          </a>
           <a
             href="https://github.com/blnt-protocol"
             target="_blank"
@@ -142,29 +124,11 @@ export const NavMenu = () => {
             title="Auctions"
             sx={{ width: '90%', justifyContent: 'left', marginBottom: '6px' }}
           />
-          <a href="https://core.allbridge.io/" target="_blank" rel="noreferrer">
-            <MenuItem
-              onClick={handleClose}
-              sx={{ color: '#FFFFFF', justifyContent: 'space-between' }}
-            >
-              <Typography>Bridge USDC</Typography>
-              <OpenInNewIcon fontSize="inherit" />
-            </MenuItem>
-          </a>
           <Link href="/settings">
             <MenuItem onClick={handleClose} sx={{ color: '#FFFFFF' }}>
               Settings
             </MenuItem>
           </Link>
-          <a href="https://docs.blnt.trade/" target="_blank" rel="noreferrer">
-            <MenuItem
-              onClick={handleClose}
-              sx={{ color: '#FFFFFF', justifyContent: 'space-between' }}
-            >
-              <Typography>Docs</Typography>
-              <OpenInNewIcon fontSize="inherit" />
-            </MenuItem>
-          </a>
           <a
             href="https://github.com/blnt-protocol"
             target="_blank"

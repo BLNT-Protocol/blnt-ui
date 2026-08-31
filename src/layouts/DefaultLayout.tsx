@@ -1,8 +1,6 @@
 import { Box } from '@mui/material';
-import { Networks } from '@stellar/stellar-sdk';
 import { useRouter } from 'next/router';
 import { ReactNode, useEffect } from 'react';
-import { FaucetBanner } from '../components/common/FaucetBanner';
 import { OverlayModal } from '../components/common/OverlayModal';
 import { OverlayModalTOS } from '../components/common/OverlayModalTOS';
 import { Row } from '../components/common/Row';
@@ -11,7 +9,7 @@ import { NavBar } from '../components/nav/NavBar';
 import { PoolAccessBanner } from '../components/pool/PoolAccessBanner';
 import { useSettings, ViewType } from '../contexts';
 import { useWallet } from '../contexts/wallet';
-import { useBackstop, useFeeStats, usePoolMeta } from '../hooks/api';
+import { useFeeStats, usePoolMeta } from '../hooks/api';
 
 export default function DefaultLayout({ children }: { children: ReactNode }) {
   const { viewType, trackPool, setLastPool } = useSettings();
@@ -20,17 +18,8 @@ export default function DefaultLayout({ children }: { children: ReactNode }) {
   const { poolId } = router.query;
   const safePoolId =
     typeof poolId == 'string' && /^[0-9A-Z]{56}$/.test(poolId) ? poolId : undefined;
-  const isTestnet = process.env.NEXT_PUBLIC_PASSPHRASE === Networks.TESTNET;
-
   const { data: poolMeta } = usePoolMeta(safePoolId as string, safePoolId !== undefined);
-  const { data: backstop } = useBackstop(poolMeta?.version);
   const { data: feeStats } = useFeeStats();
-
-  // get the last (oldest) pool in the reward zone
-  const faucet_pool =
-    backstop !== undefined && backstop.config.rewardZone.length > 0
-      ? backstop.config.rewardZone[backstop.config.rewardZone.length - 1]
-      : undefined;
 
   useEffect(() => {
     if (poolMeta !== undefined) {
@@ -74,11 +63,6 @@ export default function DefaultLayout({ children }: { children: ReactNode }) {
             <Row>
               <WalletWarning />
             </Row>
-            {faucet_pool !== undefined && isTestnet && (
-              <Row>
-                <FaucetBanner poolId={faucet_pool} />
-              </Row>
-            )}
             <PoolAccessBanner poolMeta={poolMeta} />
             {children}
             <OverlayModal />

@@ -21,7 +21,6 @@ import {
 import { SwkAppDarkTheme } from '@creit.tech/stellar-wallets-kit';
 import {
   Asset,
-  Networks,
   Operation,
   rpc,
   Transaction,
@@ -126,7 +125,6 @@ export interface IWalletContext {
     args: CometLiquidityArgs,
     sim: boolean
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
-  faucet(): Promise<undefined>;
   createTrustlines(asset: Asset[]): Promise<void>;
   getNetworkDetails(): Promise<Network & { horizonUrl: string }>;
   setTxInclusionFee: (inclusionFee: InclusionFee) => void;
@@ -869,32 +867,6 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     }
   }
 
-  async function faucet(): Promise<undefined> {
-    if (connected && process.env.NEXT_PUBLIC_PASSPHRASE === Networks.TESTNET) {
-      const url = `https://ewqw4hx7oa.execute-api.us-east-1.amazonaws.com/getAssets?userId=${walletAddress}`;
-      try {
-        setTxStatus(TxStatus.BUILDING);
-        const resp = await fetch(url, { method: 'GET' });
-        const txEnvelopeXDR = await resp.text();
-        let transaction = new Transaction(
-          xdr.TransactionEnvelope.fromXDR(txEnvelopeXDR, 'base64'),
-          network.passphrase
-        );
-
-        let signedTx = new Transaction(await sign(transaction.toXDR()), network.passphrase);
-        const result = await sendTransaction(signedTx);
-        if (result) {
-          cleanWalletCache();
-        }
-      } catch (e: any) {
-        console.error('Failed submitting transaction: ', e);
-        setFailureMessage(e?.message);
-        setTxStatus(TxStatus.FAIL);
-        return undefined;
-      }
-    }
-  }
-
   async function createTrustlines(assets: Asset[]) {
     try {
       if (connected) {
@@ -970,7 +942,6 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         cometSingleSidedDeposit,
         cometJoin,
         cometExit,
-        faucet,
         createTrustlines,
         getNetworkDetails,
         setTxInclusionFee,
