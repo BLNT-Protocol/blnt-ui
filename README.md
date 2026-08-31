@@ -6,14 +6,14 @@ An open source UI for interacting with the Blend Protocol.
 
 The Blend UI has network specific configurations and build commands, which all export the UI to `out/`.
 
-This candidate consumes the adjacent `blend-sdk-js` checkout. Build that SDK
+This candidate consumes the adjacent `blnt-sdk-js` checkout. Build that SDK
 before installing or running the UI:
 
 ```bash
-cd ../blend-sdk-js
+cd ../blnt-sdk-js
 npm install
 npm run build
-cd ../blend-ui
+cd ../blnt-ui
 npm install
 ```
 
@@ -49,7 +49,7 @@ npm run build:testnet
 
 ## IPFS Deployment
 
-Each release gets deployed to IPFS automatically. To get the latest release, please see the [Releases page](https://github.com/levinson/blend-ui/releases).
+Each release gets deployed to IPFS automatically. To get the latest release, please see the [Releases page](https://github.com/levinson/blnt-ui/releases).
 
 ## Adding Custom Icons
 

@@ -85,7 +85,7 @@ export const NavMenu = () => {
             </MenuItem>
           </a>
           <a
-            href="https://github.com/levinson/blend-contracts-v3"
+            href="https://github.com/levinson/blnt-contracts-v3"
             target="_blank"
             rel="noreferrer"
           >
@@ -166,7 +166,7 @@ export const NavMenu = () => {
             </MenuItem>
           </a>
           <a
-            href="https://github.com/levinson/blend-contracts-v3"
+            href="https://github.com/levinson/blnt-contracts-v3"
             target="_blank"
             rel="noreferrer"
           >
