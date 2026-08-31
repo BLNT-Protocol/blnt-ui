@@ -108,8 +108,7 @@ export interface IWalletContext {
     sim: boolean
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
   backfillClaim(
-    claimant: string,
-    to: string,
+    user: string,
     sim: boolean
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
   cometSingleSidedDeposit(
@@ -787,12 +786,11 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
 
   /** Claim the connected wallet's currently vested BLNT backfill allocation. */
   async function backfillClaim(
-    claimant: string,
-    to: string,
+    user: string,
     sim: boolean
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
     if (connected && BLNT_BACKFILL_ID !== '') {
-      const operation = buildClaimBackfillOperation(BLNT_BACKFILL_ID, claimant, to);
+      const operation = buildClaimBackfillOperation(BLNT_BACKFILL_ID, user);
       if (sim) {
         return await simulateOperation(operation);
       }

@@ -28,16 +28,8 @@ export function getBackfillAllocation(address: string): bigint {
   return rawAllocation === undefined ? BigInt(0) : BigInt(rawAllocation);
 }
 
-export function buildClaimBackfillOperation(
-  backfillId: string,
-  claimant: string,
-  to: string
-): xdr.Operation {
-  return new Contract(backfillId).call(
-    'claim_backfill',
-    Address.fromString(claimant).toScVal(),
-    Address.fromString(to).toScVal()
-  );
+export function buildClaimBackfillOperation(backfillId: string, user: string): xdr.Operation {
+  return new Contract(backfillId).call('claim_backfill', Address.fromString(user).toScVal());
 }
 
 function buildViewTransaction(
