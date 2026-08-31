@@ -49,7 +49,7 @@ npm run build:testnet
 
 ## IPFS Deployment
 
-Each release gets deployed to IPFS automatically. To get the latest release, please see the [Releases page](https://github.com/levinson/blnt-ui/releases).
+Each release gets deployed to IPFS automatically. To get the latest release, please see the [Releases page](https://github.com/blnt-protocol/blnt-ui/releases).
 
 ## Adding Custom Icons
 
