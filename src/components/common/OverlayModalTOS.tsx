@@ -3,21 +3,22 @@ import { useEffect, useState } from 'react';
 import { OpaqueButton } from './OpaqueButton';
 import { TOS } from './TOS';
 
+const TOS_VERSION = '2026-08-31';
+
 export const OverlayModalTOS: React.FC = () => {
   const theme = useTheme();
 
   const [showTosModal, setShowTosModal] = useState(true);
   const handleAcknowledge = () => {
-    localStorage.setItem('acknowledgeTos', 'true');
+    localStorage.setItem('blntTosVersion', TOS_VERSION);
     setShowTosModal(false);
   };
   const handleCancel = () => {
-    window.open(`https://blnt.trade`, '_self');
-    window.close();
+    window.location.replace('https://github.com/blnt-protocol');
   };
   useEffect(() => {
-    let returningUser = localStorage.getItem('acknowledgeTos');
-    setShowTosModal(!returningUser);
+    const acceptedVersion = localStorage.getItem('blntTosVersion');
+    setShowTosModal(acceptedVersion !== TOS_VERSION);
   }, []);
 
   return (
@@ -50,7 +51,7 @@ export const OverlayModalTOS: React.FC = () => {
             }}
           >
             <Typography variant="h2" sx={{ margin: '12px' }}>
-              Blend App Terms of Service
+              BLNT.trade Website and Interface Terms of Use
             </Typography>
             <Box
               sx={{
@@ -92,7 +93,7 @@ export const OverlayModalTOS: React.FC = () => {
                 }}
               >
                 <Box sx={{ padding: '6px', display: 'flex', flexDirection: 'row', height: '30px' }}>
-                  <Box sx={{ lineHeight: '100%' }}>Acknowledge</Box>
+                  <Box sx={{ lineHeight: '100%' }}>Agree</Box>
                 </Box>
               </OpaqueButton>
             </Box>

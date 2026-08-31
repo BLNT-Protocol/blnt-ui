@@ -9,7 +9,7 @@ const TermsOfService: NextPage = () => {
     <>
       <>
         <Row sx={{ margin: '12px', padding: '12px' }}>
-          <Typography variant="h1">Blend App Terms of Service</Typography>
+          <Typography variant="h1">BLNT.trade Website and Interface Terms of Use</Typography>
         </Row>
         <Divider />
         <Box sx={{ margin: '12px', padding: '12px' }}>
