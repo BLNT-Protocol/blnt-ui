@@ -41,6 +41,9 @@ jobs:
             blnt-sdk-js/package-lock.json
             blnt-ui/package-lock.json
 
+      - name: Set up npm
+        run: npm install --global npm@11.13.0
+
       - name: Install and build SDK
         working-directory: blnt-sdk-js
         run: |
