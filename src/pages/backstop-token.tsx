@@ -29,7 +29,7 @@ import {
 } from '../hooks/api';
 import { getTierIcon } from '../utils/backstop';
 import { toBalance } from '../utils/formatter';
-import { BLND_ASSET, USDC_ASSET } from '../utils/token_display';
+import { BLND_ASSET, BLNT_ASSET, USDC_ASSET, V3_USDC_ASSET } from '../utils/token_display';
 
 const BackstopToken: NextPage = () => {
   const theme = useTheme();
@@ -73,9 +73,13 @@ const BackstopToken: NextPage = () => {
     version,
     poolMeta
   );
-  const pairAsset = pairSymbol === 'XLM' ? Asset.native() : USDC_ASSET;
+  const isV3 = poolMeta?.version === Version.V3;
+  const primaryAsset = isV3 ? BLNT_ASSET : BLND_ASSET;
+  const primarySymbol = primaryAsset.code;
+  const pairAsset =
+    pairSymbol === 'XLM' ? Asset.native() : isV3 ? V3_USDC_ASSET : USDC_ASSET;
   const { data: horizonAccount } = useHorizonAccount();
-  const { data: blndBalanceRes } = useTokenBalance(blndTokenId, BLND_ASSET, horizonAccount);
+  const { data: blndBalanceRes } = useTokenBalance(blndTokenId, primaryAsset, horizonAccount);
   const { data: usdcBalanceRes } = useTokenBalance(pairTokenId, pairAsset, horizonAccount);
   const { data: lpBalanceRes } = useTokenBalance(cometPoolId, undefined, horizonAccount);
 
@@ -219,9 +223,13 @@ const BackstopToken: NextPage = () => {
           width={viewType === ViewType.REGULAR ? SectionSize.THIRD : SectionSize.TILE}
           sx={{ alignItems: 'center', justifyContent: 'flex-start', padding: '12px' }}
         >
-          <Icon src={'/icons/tokens/blnd.svg'} alt={`blnd icon`} sx={{ marginRight: '12px' }} />
+          <Icon
+            src={isV3 ? '/icons/tokens/blnd-yellow.svg' : '/icons/tokens/blnd.svg'}
+            alt={`${primarySymbol.toLowerCase()} icon`}
+            sx={{ marginRight: '12px' }}
+          />
           <StackedText
-            title="Your BLND Balance"
+            title={`Your ${primarySymbol} Balance`}
             titleColor="inherit"
             text={toBalance(blndBalance, 7)}
             textColor="inherit"

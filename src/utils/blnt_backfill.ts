@@ -4,6 +4,7 @@ import {
   Address,
   BASE_FEE,
   Contract,
+  nativeToScVal,
   rpc,
   scValToNative,
   TransactionBuilder,
@@ -12,7 +13,6 @@ import {
 import allocations from '../data/blnt_backfill_allocations.json';
 
 const VIEW_SOURCE = 'GANXGJV2RNOFMOSQ2DTI3RKDBAVERXUVFC27KW3RLVQCLB3RYNO3AAI4';
-
 export const BLNT_BACKFILL_ID = process.env.NEXT_PUBLIC_BLNT_BACKFILL || '';
 
 export interface BackfillEmissionsState {
@@ -23,6 +23,15 @@ export interface BackfillEmissionsState {
   vestingEnd: bigint;
 }
 
+export interface BackfillSwapState {
+  legacyBlndToken: string;
+  blntToken: string;
+  remainingCapacity: bigint;
+  refundable: bigint;
+  swapDeadline: bigint;
+  ledgerCloseTime: bigint;
+}
+
 export function getBackfillAllocation(address: string): bigint {
   const rawAllocation = (allocations as Record<string, string>)[address];
   return rawAllocation === undefined ? BigInt(0) : BigInt(rawAllocation);
@@ -30,6 +39,30 @@ export function getBackfillAllocation(address: string): bigint {
 
 export function buildClaimBackfillOperation(backfillId: string, user: string): xdr.Operation {
   return new Contract(backfillId).call('claim_backfill', Address.fromString(user).toScVal());
+}
+
+export function buildSwapBlndForBlntOperation(
+  backfillId: string,
+  user: string,
+  amount: bigint
+): xdr.Operation {
+  return new Contract(backfillId).call(
+    'swap_blnd_for_blnt',
+    Address.fromString(user).toScVal(),
+    nativeToScVal(amount, { type: 'i128' })
+  );
+}
+
+export function buildRefundBlntForBlndOperation(
+  backfillId: string,
+  user: string,
+  amount: bigint
+): xdr.Operation {
+  return new Contract(backfillId).call(
+    'refund_blnt_for_blnd',
+    Address.fromString(user).toScVal(),
+    nativeToScVal(amount, { type: 'i128' })
+  );
 }
 
 function buildViewTransaction(
@@ -61,6 +94,21 @@ async function simulateBigIntView(
     throw new Error(`Unable to load BLNT backfill ${method} view`);
   }
   return BigInt(scValToNative(response.result.retval));
+}
+
+async function simulateAddressView(
+  stellarRpc: rpc.Server,
+  networkPassphrase: string,
+  backfillId: string,
+  method: string
+): Promise<string> {
+  const response = await stellarRpc.simulateTransaction(
+    buildViewTransaction(networkPassphrase, backfillId, method)
+  );
+  if (!rpc.Api.isSimulationSuccess(response) || response.result?.retval === undefined) {
+    throw new Error(`Unable to load BLNT backfill ${method} view`);
+  }
+  return scValToNative(response.result.retval).toString();
 }
 
 function calculateVestedAllocation(
@@ -112,5 +160,36 @@ export async function loadBackfillEmissionsState(
     claimable,
     vestingStart,
     vestingEnd,
+  };
+}
+
+export async function loadBackfillSwapState(
+  network: Network,
+  backfillId: string,
+  user: string
+): Promise<BackfillSwapState> {
+  const stellarRpc = new rpc.Server(network.rpc, network.opts);
+  const userArg = user === '' ? undefined : Address.fromString(user).toScVal();
+  const [legacyBlndToken, blntToken, remainingCapacity, refundable, swapDeadline, latestLedger] =
+    await Promise.all([
+      simulateAddressView(stellarRpc, network.passphrase, backfillId, 'get_legacy_blnd_token'),
+      simulateAddressView(stellarRpc, network.passphrase, backfillId, 'get_blnt_token'),
+      simulateBigIntView(stellarRpc, network.passphrase, backfillId, 'get_remaining_swap_capacity'),
+      userArg === undefined
+        ? Promise.resolve(BigInt(0))
+        : simulateBigIntView(stellarRpc, network.passphrase, backfillId, 'get_refundable', [
+            userArg,
+          ]),
+      simulateBigIntView(stellarRpc, network.passphrase, backfillId, 'get_swap_deadline'),
+      stellarRpc.getLatestLedger(),
+    ]);
+
+  return {
+    legacyBlndToken,
+    blntToken,
+    remainingCapacity,
+    refundable,
+    swapDeadline,
+    ledgerCloseTime: BigInt(latestLedger.closeTime),
   };
 }

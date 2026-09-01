@@ -31,6 +31,8 @@ export const OverlayModal: React.FC = () => {
     if (returnToHomePage && txType != TxType.PREREQ) {
       if (router.route == '/') {
         router.push({ pathname: '/' });
+      } else if (router.route === '/emissions' || router.route === '/backfill-swap') {
+        router.push({ pathname: '/emissions' });
       } else if (router.route.includes('backstop')) {
         router.push({
           pathname: `/backstop`,

@@ -21,6 +21,7 @@ import { TooltipText } from '../common/TooltipText';
 
 const BLNT_DECIMALS = 7;
 
+/** Render the connected wallet's protocol-wide BLNT backfill allocation and claim action. */
 export const BackfillEmissions: React.FC = () => {
   const theme = useTheme();
   const { viewType } = useSettings();

@@ -56,6 +56,11 @@ export const NavMenu = () => {
             backgroundColor: theme.palette.menu.main,
           }}
         >
+          <Link href="/emissions">
+            <MenuItem onClick={handleClose} sx={{ color: '#FFFFFF' }}>
+              BLNT Backfill
+            </MenuItem>
+          </Link>
           <Link href={{ pathname: '/auction', query: { poolId: safePoolId } }}>
             <MenuItem onClick={handleClose} sx={{ color: '#FFFFFF' }}>
               Auctions
@@ -100,6 +105,11 @@ export const NavMenu = () => {
             backgroundColor: theme.palette.menu.main,
           }}
         >
+          <Link href="/emissions">
+            <MenuItem onClick={handleClose} sx={{ color: '#FFFFFF' }}>
+              BLNT Backfill
+            </MenuItem>
+          </Link>
           <NavItem
             onClick={handleClose}
             to={{ pathname: '/' }}

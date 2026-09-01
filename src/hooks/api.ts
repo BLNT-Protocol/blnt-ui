@@ -63,8 +63,10 @@ import { getTokenMetadataFromTOML, TomlMetadata } from '../external/stellar-toml
 import { getTokenBalance } from '../external/token';
 import {
   BackfillEmissionsState,
+  BackfillSwapState,
   BLNT_BACKFILL_ID,
   loadBackfillEmissionsState,
+  loadBackfillSwapState,
 } from '../utils/blnt_backfill';
 import { getOraclePrices } from '../utils/stellar_rpc';
 import { ReserveTokenMetadata } from '../utils/token';
@@ -101,6 +103,7 @@ export function useQueryClientCacheCleaner(): {
         query.queryKey[0] === 'balance' ||
         query.queryKey[0] === 'account' ||
         query.queryKey[0] === 'backfillEmissions' ||
+        query.queryKey[0] === 'backfillSwap' ||
         query.queryKey[0] === 'sim',
     });
 
@@ -181,6 +184,22 @@ export function useBackfillEmissions(
     queryKey: ['backfillEmissions', BLNT_BACKFILL_ID, walletAddress],
     enabled: enabled && connected && walletAddress !== '' && BLNT_BACKFILL_ID !== '',
     queryFn: () => loadBackfillEmissionsState(network, BLNT_BACKFILL_ID, walletAddress),
+  });
+}
+
+/** Fetch the immutable token bindings and live BLND-to-BLNT conversion state. */
+export function useBackfillSwapState(
+  user: string = '',
+  enabled: boolean = true
+): UseQueryResult<BackfillSwapState, Error> {
+  const { network } = useSettings();
+
+  return useQuery({
+    staleTime: DEFAULT_STALE_TIME,
+    refetchInterval: DEFAULT_STALE_TIME,
+    queryKey: ['backfillSwap', BLNT_BACKFILL_ID, user],
+    enabled: enabled && BLNT_BACKFILL_ID !== '',
+    queryFn: () => loadBackfillSwapState(network, BLNT_BACKFILL_ID, user),
   });
 }
 

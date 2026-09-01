@@ -12,7 +12,12 @@ import { PoolMeta } from '../../hooks/types';
 import { estJoinPool, estLPTokenViaJoin } from '../../utils/comet';
 import { toBalance } from '../../utils/formatter';
 import { scaleInputToBigInt } from '../../utils/scval';
-import { BLND_ASSET, USDC_ASSET } from '../../utils/token_display';
+import {
+  BLND_ASSET,
+  BLNT_ASSET,
+  USDC_ASSET,
+  V3_USDC_ASSET,
+} from '../../utils/token_display';
 import { SubmitError, getErrorFromSim } from '../../utils/txSim';
 import { AnvilAlert } from '../common/AnvilAlert';
 import { InputBar } from '../common/InputBar';
@@ -45,9 +50,13 @@ export const BackstopJoinAnvil: React.FC<{
 
   const { backstopToken, blndTokenId, cometPoolId, lpSymbol, pairSymbol, pairTokenId } =
     useManagedBackstopToken(tier, version, poolMeta);
-  const pairAsset = pairSymbol === 'XLM' ? Asset.native() : USDC_ASSET;
+  const isV3 = poolMeta?.version === Version.V3;
+  const primaryAsset = isV3 ? BLNT_ASSET : BLND_ASSET;
+  const primarySymbol = primaryAsset.code;
+  const pairAsset =
+    pairSymbol === 'XLM' ? Asset.native() : isV3 ? V3_USDC_ASSET : USDC_ASSET;
   const { data: horizonAccount } = useHorizonAccount();
-  const { data: blndBalanceRes } = useTokenBalance(blndTokenId, BLND_ASSET, horizonAccount);
+  const { data: blndBalanceRes } = useTokenBalance(blndTokenId, primaryAsset, horizonAccount);
   const { data: usdcBalanceRes } = useTokenBalance(pairTokenId, pairAsset, horizonAccount);
   const { data: lpBalanceRes } = useTokenBalance(cometPoolId, undefined, horizonAccount);
 
@@ -92,7 +101,7 @@ export const BackstopJoinAnvil: React.FC<{
   const curTokenBalance =
     currentToken.symbol === pairSymbol
       ? usdcBalance
-      : currentToken.symbol === 'BLND'
+      : currentToken.symbol === primarySymbol
       ? blndBalance
       : lpBalance;
   const maxBLNDDeposit = backstopToken ? backstopToken.blnd / BigInt(3) - BigInt(1) : BigInt(0);
@@ -151,7 +160,7 @@ export const BackstopJoinAnvil: React.FC<{
         errorProps.isMaxDisabled = false;
         errorProps.reason = 'Slippage can be at most 10%';
         errorProps.disabledType = 'warning';
-      } else if (currentToken.symbol === 'BLND' && inputAsBigInt > maxBLNDDeposit) {
+      } else if (currentToken.symbol === primarySymbol && inputAsBigInt > maxBLNDDeposit) {
         errorProps.isSubmitDisabled = true;
         errorProps.isError = true;
         errorProps.isMaxDisabled = true;
@@ -178,7 +187,7 @@ export const BackstopJoinAnvil: React.FC<{
         errorProps.isMaxDisabled = true;
         errorProps.reason = `You do not have enough tokens to mint the requested amount. You need ${toBalance(
           maxBLNDIn
-        )} BLND and ${toBalance(maxUSDCIn)} ${pairSymbol}.`;
+        )} ${primarySymbol} and ${toBalance(maxUSDCIn)} ${pairSymbol}.`;
         errorProps.disabledType = 'warning';
       }
       if (errorProps.isError) {
@@ -196,6 +205,7 @@ export const BackstopJoinAnvil: React.FC<{
       maxUSDCDeposit,
       maxBLNDDeposit,
       pairSymbol,
+      primarySymbol,
     ]);
 
   if (backstopToken === undefined || cometPoolId === '') {
@@ -210,7 +220,7 @@ export const BackstopJoinAnvil: React.FC<{
   const handleMaxClick = () => {
     if (!isJoin) {
       let max = curTokenBalance;
-      if (currentToken.symbol === 'BLND' && curTokenBalance > maxBLNDDeposit) {
+      if (currentToken.symbol === primarySymbol && curTokenBalance > maxBLNDDeposit) {
         max = maxBLNDDeposit;
       } else if (currentToken.symbol === pairSymbol && curTokenBalance > maxUSDCDeposit) {
         max = maxUSDCDeposit;
@@ -242,7 +252,7 @@ export const BackstopJoinAnvil: React.FC<{
       if (
         !isJoin &&
         inputAsBigInt <= curTokenBalance &&
-        ((currentToken.symbol === 'BLND' && inputAsBigInt <= maxBLNDDeposit) ||
+        ((currentToken.symbol === primarySymbol && inputAsBigInt <= maxBLNDDeposit) ||
           (currentToken.symbol === pairSymbol && inputAsBigInt <= maxUSDCDeposit))
       ) {
         cometSingleSidedDeposit(
@@ -338,9 +348,9 @@ export const BackstopJoinAnvil: React.FC<{
       if (currentToken.symbol === pairSymbol) {
         setCurrentToken({
           address: blndTokenId,
-          symbol: 'BLND',
+          symbol: primarySymbol,
         });
-      } else if (currentToken.symbol === 'BLND') {
+      } else if (currentToken.symbol === primarySymbol) {
         setCurrentToken({
           address: cometPoolId,
           symbol: lpSymbol,
@@ -358,7 +368,7 @@ export const BackstopJoinAnvil: React.FC<{
     pairSymbol === 'USDC'
       ? isJoin
         ? Number(input.amount) * backstopToken.lpTokenPrice
-        : currentToken.symbol === 'BLND'
+        : currentToken.symbol === primarySymbol
         ? Number(input.amount) *
           (Number(backstopToken.usdc) / 0.2 / (Number(backstopToken.blnd) / 0.8))
         : Number(input.amount)
@@ -560,14 +570,17 @@ export const BackstopJoinAnvil: React.FC<{
               />
               {isJoin ? (
                 <>
-                  <Value title="Max BLND to deposit" value={`${toBalance(maxBLNDIn)} BLND`} />
+                  <Value
+                    title={`Max ${primarySymbol} to deposit`}
+                    value={`${toBalance(maxBLNDIn)} ${primarySymbol}`}
+                  />
                   <ValueChange
-                    title="Your BLND tokens"
-                    curValue={`${toBalance(blndBalance, 7)} BLND`}
+                    title={`Your ${primarySymbol} tokens`}
+                    curValue={`${toBalance(blndBalance, 7)} ${primarySymbol}`}
                     newValue={`${toBalance(
                       blndBalance - BigInt(Math.floor(maxBLNDIn * 1e7)),
                       7
-                    )} BLND`}
+                    )} ${primarySymbol}`}
                   />
                   <Value
                     title={`Max ${pairSymbol} to deposit`}
