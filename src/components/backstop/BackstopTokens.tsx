@@ -18,14 +18,10 @@ const TOKEN_DECIMALS = 7;
 export const BackstopTokens: React.FC = () => {
   const theme = useTheme();
   const { viewType } = useSettings();
-  const { connected, walletAddress } = useWallet();
+  const { connected } = useWallet();
   const { data: account } = useHorizonAccount();
-  const { data: swapState } = useBackfillSwapState(walletAddress);
-  const { data: blndBalance } = useTokenBalance(
-    swapState?.legacyBlndToken,
-    BLND_ASSET,
-    account
-  );
+  const { data: swapState } = useBackfillSwapState();
+  const { data: blndBalance } = useTokenBalance(swapState?.legacyBlndToken, BLND_ASSET, account);
   const { data: blntBalance } = useTokenBalance(swapState?.blntToken, BLNT_ASSET, account);
 
   const formatBalance = (balance: bigint | undefined, symbol: string) =>
@@ -105,7 +101,7 @@ export const BackstopTokens: React.FC = () => {
               <StackedText
                 title="Swap BLND"
                 titleColor="inherit"
-                text="BLND ↔ BLNT"
+                text="2 BLND → 1 BLNT"
                 textColor="inherit"
                 type="large"
               />

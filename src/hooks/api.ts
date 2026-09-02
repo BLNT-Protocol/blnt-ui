@@ -189,7 +189,6 @@ export function useBackfillEmissions(
 
 /** Fetch the immutable token bindings and live BLND-to-BLNT conversion state. */
 export function useBackfillSwapState(
-  user: string = '',
   enabled: boolean = true
 ): UseQueryResult<BackfillSwapState, Error> {
   const { network } = useSettings();
@@ -197,9 +196,9 @@ export function useBackfillSwapState(
   return useQuery({
     staleTime: DEFAULT_STALE_TIME,
     refetchInterval: DEFAULT_STALE_TIME,
-    queryKey: ['backfillSwap', BLNT_BACKFILL_ID, user],
+    queryKey: ['backfillSwap', BLNT_BACKFILL_ID],
     enabled: enabled && BLNT_BACKFILL_ID !== '',
-    queryFn: () => loadBackfillSwapState(network, BLNT_BACKFILL_ID, user),
+    queryFn: () => loadBackfillSwapState(network, BLNT_BACKFILL_ID),
   });
 }
 

@@ -34,7 +34,6 @@ import { PoolMeta } from '../hooks/types';
 import {
   BLNT_BACKFILL_ID,
   buildClaimBackfillOperation,
-  buildRefundBlntForBlndOperation,
   buildSwapBlndForBlntOperation,
 } from '../utils/blnt_backfill';
 import { CometClient, CometLiquidityArgs, CometSingleSidedDepositArgs } from '../utils/comet';
@@ -117,12 +116,7 @@ export interface IWalletContext {
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
   backfillSwapBlndForBlnt(
     user: string,
-    amount: bigint,
-    sim: boolean
-  ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
-  backfillRefundBlntForBlnd(
-    user: string,
-    amount: bigint,
+    blntAmount: bigint,
     sim: boolean
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
   cometSingleSidedDeposit(
@@ -812,30 +806,14 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     }
   }
 
-  /** Swap the connected wallet's legacy BLND for pre-funded BLNT at 1:1. */
+  /** Burn two legacy BLND for each pre-funded BLNT sent to the connected wallet. */
   async function backfillSwapBlndForBlnt(
     user: string,
-    amount: bigint,
+    blntAmount: bigint,
     sim: boolean
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
     if (connected && BLNT_BACKFILL_ID !== '') {
-      const operation = buildSwapBlndForBlntOperation(BLNT_BACKFILL_ID, user, amount);
-      if (sim) {
-        return await simulateOperation(operation);
-      }
-      await invokeSorobanOperation(operation);
-      cleanWalletCache();
-    }
-  }
-
-  /** Refund previously swapped BLNT for the connected wallet's escrowed BLND. */
-  async function backfillRefundBlntForBlnd(
-    user: string,
-    amount: bigint,
-    sim: boolean
-  ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
-    if (connected && BLNT_BACKFILL_ID !== '') {
-      const operation = buildRefundBlntForBlndOperation(BLNT_BACKFILL_ID, user, amount);
+      const operation = buildSwapBlndForBlntOperation(BLNT_BACKFILL_ID, user, blntAmount);
       if (sim) {
         return await simulateOperation(operation);
       }
@@ -987,7 +965,6 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         backstopClaim,
         backfillClaim,
         backfillSwapBlndForBlnt,
-        backfillRefundBlntForBlnd,
         cometSingleSidedDeposit,
         cometJoin,
         cometExit,

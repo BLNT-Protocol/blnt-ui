@@ -27,7 +27,6 @@ export interface BackfillSwapState {
   legacyBlndToken: string;
   blntToken: string;
   remainingCapacity: bigint;
-  refundable: bigint;
   swapDeadline: bigint;
   ledgerCloseTime: bigint;
 }
@@ -44,24 +43,12 @@ export function buildClaimBackfillOperation(backfillId: string, user: string): x
 export function buildSwapBlndForBlntOperation(
   backfillId: string,
   user: string,
-  amount: bigint
+  blntAmount: bigint
 ): xdr.Operation {
   return new Contract(backfillId).call(
     'swap_blnd_for_blnt',
     Address.fromString(user).toScVal(),
-    nativeToScVal(amount, { type: 'i128' })
-  );
-}
-
-export function buildRefundBlntForBlndOperation(
-  backfillId: string,
-  user: string,
-  amount: bigint
-): xdr.Operation {
-  return new Contract(backfillId).call(
-    'refund_blnt_for_blnd',
-    Address.fromString(user).toScVal(),
-    nativeToScVal(amount, { type: 'i128' })
+    nativeToScVal(blntAmount, { type: 'i128' })
   );
 }
 
@@ -165,21 +152,14 @@ export async function loadBackfillEmissionsState(
 
 export async function loadBackfillSwapState(
   network: Network,
-  backfillId: string,
-  user: string
+  backfillId: string
 ): Promise<BackfillSwapState> {
   const stellarRpc = new rpc.Server(network.rpc, network.opts);
-  const userArg = user === '' ? undefined : Address.fromString(user).toScVal();
-  const [legacyBlndToken, blntToken, remainingCapacity, refundable, swapDeadline, latestLedger] =
+  const [legacyBlndToken, blntToken, remainingCapacity, swapDeadline, latestLedger] =
     await Promise.all([
       simulateAddressView(stellarRpc, network.passphrase, backfillId, 'get_legacy_blnd_token'),
       simulateAddressView(stellarRpc, network.passphrase, backfillId, 'get_blnt_token'),
       simulateBigIntView(stellarRpc, network.passphrase, backfillId, 'get_remaining_swap_capacity'),
-      userArg === undefined
-        ? Promise.resolve(BigInt(0))
-        : simulateBigIntView(stellarRpc, network.passphrase, backfillId, 'get_refundable', [
-            userArg,
-          ]),
       simulateBigIntView(stellarRpc, network.passphrase, backfillId, 'get_swap_deadline'),
       stellarRpc.getLatestLedger(),
     ]);
@@ -188,7 +168,6 @@ export async function loadBackfillSwapState(
     legacyBlndToken,
     blntToken,
     remainingCapacity,
-    refundable,
     swapDeadline,
     ledgerCloseTime: BigInt(latestLedger.closeTime),
   };

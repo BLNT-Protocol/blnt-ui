@@ -10,11 +10,7 @@ import {
   useTokenBalance,
 } from '../../hooks/api';
 import { RPC_DEBOUNCE_DELAY, useDebouncedState } from '../../hooks/debounce';
-import {
-  BLNT_BACKFILL_ID,
-  buildRefundBlntForBlndOperation,
-  buildSwapBlndForBlntOperation,
-} from '../../utils/blnt_backfill';
+import { BLNT_BACKFILL_ID, buildSwapBlndForBlntOperation } from '../../utils/blnt_backfill';
 import { toBalance } from '../../utils/formatter';
 import { requiresTrustline } from '../../utils/horizon';
 import { bigintToInput, scaleInputToBigInt } from '../../utils/scval';
@@ -29,8 +25,7 @@ import { Section, SectionSize } from '../common/Section';
 import { TxFeeSelector } from '../common/TxFeeSelector';
 
 const TOKEN_DECIMALS = 7;
-
-export type BackfillSwapMode = 'swap' | 'refund';
+const BLND_PER_BLNT = BigInt(2);
 
 function parseAmount(input: string): bigint | undefined {
   if (!/^(?:\d+(?:\.\d{0,7})?|\.\d{1,7})$/.test(input)) return undefined;
@@ -41,14 +36,13 @@ function parseAmount(input: string): bigint | undefined {
   }
 }
 
-export const BackfillSwap: React.FC<{ mode: BackfillSwapMode }> = ({ mode }) => {
+export const BackfillSwap: React.FC = () => {
   const theme = useTheme();
   const { viewType } = useSettings();
   const {
     connected,
     walletAddress,
     backfillSwapBlndForBlnt,
-    backfillRefundBlntForBlnd,
     createTrustlines,
     clearLastTx,
     restore,
@@ -57,30 +51,23 @@ export const BackfillSwap: React.FC<{ mode: BackfillSwapMode }> = ({ mode }) => 
     isLoading,
   } = useWallet();
   const { data: account, refetch: refetchAccount } = useHorizonAccount();
-  const { data: swapState, refetch: refetchSwapState } = useBackfillSwapState(walletAddress);
-  const { data: blndBalance } = useTokenBalance(
-    swapState?.legacyBlndToken,
-    BLND_ASSET,
-    account
-  );
-  const { data: blntBalance } = useTokenBalance(swapState?.blntToken, BLNT_ASSET, account);
+  const { data: swapState, refetch: refetchSwapState } = useBackfillSwapState();
+  const { data: blndBalance } = useTokenBalance(swapState?.legacyBlndToken, BLND_ASSET, account);
   const [amount, setAmount] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const debouncedAmount = useDebouncedState(amount, RPC_DEBOUNCE_DELAY, txType);
   const requestedAmount = parseAmount(amount);
   const debouncedRequestedAmount = parseAmount(debouncedAmount);
-  const isSwap = mode === 'swap';
-  const inputSymbol = isSwap ? 'BLND' : 'BLNT';
-  const outputSymbol = isSwap ? 'BLNT' : 'BLND';
-  const outputAsset = isSwap ? BLNT_ASSET : BLND_ASSET;
-  const inputBalance = connected ? (isSwap ? blndBalance : blntBalance) ?? BigInt(0) : BigInt(0);
-  const laneLimit = isSwap
-    ? swapState?.remainingCapacity ?? BigInt(0)
-    : swapState?.refundable ?? BigInt(0);
-  const maxAmount = inputBalance < laneLimit ? inputBalance : laneLimit;
+  const requestedBlnd = requestedAmount === undefined ? undefined : requestedAmount * BLND_PER_BLNT;
+  const debouncedRequestedBlnd =
+    debouncedRequestedAmount === undefined ? undefined : debouncedRequestedAmount * BLND_PER_BLNT;
+  const inputBalance = connected ? blndBalance ?? BigInt(0) : BigInt(0);
+  const laneLimit = swapState?.remainingCapacity ?? BigInt(0);
+  const balanceCapacity = inputBalance / BLND_PER_BLNT;
+  const maxAmount = balanceCapacity < laneLimit ? balanceCapacity : laneLimit;
   const expired = swapState !== undefined && swapState.ledgerCloseTime >= swapState.swapDeadline;
   const needsOutputTrustline =
-    connected && account !== undefined && requiresTrustline(account, outputAsset);
+    connected && account !== undefined && requiresTrustline(account, BLNT_ASSET);
   const showTrustlineAction = needsOutputTrustline && !expired;
   const canSimulate =
     connected &&
@@ -89,12 +76,13 @@ export const BackfillSwap: React.FC<{ mode: BackfillSwapMode }> = ({ mode }) => 
     !expired &&
     swapState !== undefined &&
     debouncedRequestedAmount !== undefined &&
+    debouncedRequestedBlnd !== undefined &&
     debouncedRequestedAmount > BigInt(0) &&
-    debouncedRequestedAmount <= inputBalance &&
+    debouncedRequestedBlnd <= inputBalance &&
     debouncedRequestedAmount <= laneLimit;
   const operation =
     canSimulate && walletAddress !== ''
-      ? (isSwap ? buildSwapBlndForBlntOperation : buildRefundBlntForBlndOperation)(
+      ? buildSwapBlndForBlntOperation(
           BLNT_BACKFILL_ID,
           walletAddress,
           debouncedRequestedAmount
@@ -117,12 +105,11 @@ export const BackfillSwap: React.FC<{ mode: BackfillSwapMode }> = ({ mode }) => 
         simulation,
         () => {
           if (!connected) return {};
-          const loadedBalance = isSwap ? blndBalance : blntBalance;
-          if (swapState === undefined || account === undefined || loadedBalance === undefined) {
+          if (swapState === undefined || account === undefined || blndBalance === undefined) {
             return {
               isError: true,
               isSubmitDisabled: true,
-              reason: `Loading ${inputSymbol} conversion details...`,
+              reason: 'Loading BLND conversion details...',
               disabledType: 'info',
             };
           }
@@ -130,7 +117,7 @@ export const BackfillSwap: React.FC<{ mode: BackfillSwapMode }> = ({ mode }) => 
             return {
               isError: true,
               isSubmitDisabled: true,
-              reason: 'The BLND-to-BLNT conversion and refund window has closed.',
+              reason: 'The BLND-to-BLNT conversion window has closed.',
               disabledType: 'warning',
             };
           }
@@ -142,11 +129,11 @@ export const BackfillSwap: React.FC<{ mode: BackfillSwapMode }> = ({ mode }) => 
               disabledType: 'warning',
             };
           }
-          if (requestedAmount > loadedBalance) {
+          if (requestedBlnd === undefined || requestedBlnd > blndBalance) {
             return {
               isError: true,
               isSubmitDisabled: true,
-              reason: `The amount exceeds your available ${inputSymbol} balance.`,
+              reason: 'The conversion requires more BLND than your available balance.',
               disabledType: 'warning',
             };
           }
@@ -154,9 +141,7 @@ export const BackfillSwap: React.FC<{ mode: BackfillSwapMode }> = ({ mode }) => 
             return {
               isError: true,
               isSubmitDisabled: true,
-              reason: isSwap
-                ? 'The amount exceeds the remaining BLND-to-BLNT swap capacity.'
-                : 'The amount exceeds your refundable BLND credit.',
+              reason: 'The amount exceeds the remaining BLND-to-BLNT swap capacity.',
               disabledType: 'warning',
             };
           }
@@ -167,21 +152,17 @@ export const BackfillSwap: React.FC<{ mode: BackfillSwapMode }> = ({ mode }) => 
       account,
       amount,
       blndBalance,
-      blntBalance,
       connected,
       expired,
-      inputSymbol,
       isDebouncing,
       isSimulationLoading,
-      isSwap,
       laneLimit,
       requestedAmount,
+      requestedBlnd,
       simulation,
       swapState,
     ]
   );
-
-  useEffect(() => setAmount(''), [mode]);
 
   useEffect(() => {
     if (!submitted) return;
@@ -197,7 +178,7 @@ export const BackfillSwap: React.FC<{ mode: BackfillSwapMode }> = ({ mode }) => 
   const handleAction = async () => {
     if (!connected) return;
     if (showTrustlineAction) {
-      await createTrustlines([outputAsset]);
+      await createTrustlines([BLNT_ASSET]);
       await refetchAccount();
       return;
     }
@@ -209,11 +190,7 @@ export const BackfillSwap: React.FC<{ mode: BackfillSwapMode }> = ({ mode }) => 
     if (requestedAmount === undefined || isSubmitDisabled) return;
     clearLastTx();
     setSubmitted(true);
-    if (isSwap) {
-      await backfillSwapBlndForBlnt(walletAddress, requestedAmount, false);
-    } else {
-      await backfillRefundBlntForBlnd(walletAddress, requestedAmount, false);
-    }
+    await backfillSwapBlndForBlnt(walletAddress, requestedAmount, false);
   };
 
   const deadline =
@@ -221,14 +198,12 @@ export const BackfillSwap: React.FC<{ mode: BackfillSwapMode }> = ({ mode }) => 
       ? '--'
       : new Date(Number(swapState.swapDeadline) * 1000).toISOString().split('T')[0];
   const actionLabel = showTrustlineAction
-    ? `Add ${outputSymbol} Trustline`
+    ? 'Add BLNT Trustline'
     : isRestore
     ? 'Restore Data'
     : expired
-    ? `${isSwap ? 'Swap' : 'Refund'} unavailable`
-    : isSwap
-    ? 'Swap'
-    : 'Refund';
+    ? 'Swap unavailable'
+    : 'Swap';
   const actionDisabled =
     !connected ||
     swapState === undefined ||
@@ -247,10 +222,8 @@ export const BackfillSwap: React.FC<{ mode: BackfillSwapMode }> = ({ mode }) => 
           }}
         >
           <Box sx={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-            <Typography variant="body2">Available {inputSymbol}</Typography>
-            <Typography variant="h4">
-              {toBalance(inputBalance, TOKEN_DECIMALS)} {inputSymbol}
-            </Typography>
+            <Typography variant="body2">Available BLND</Typography>
+            <Typography variant="h4">{toBalance(inputBalance, TOKEN_DECIMALS)} BLND</Typography>
           </Box>
           <Box
             sx={{
@@ -260,7 +233,7 @@ export const BackfillSwap: React.FC<{ mode: BackfillSwapMode }> = ({ mode }) => 
             }}
           >
             <InputBar
-              symbol={inputSymbol}
+              symbol="BLNT"
               value={amount}
               onValueChange={setAmount}
               palette={theme.palette.backstop}
@@ -293,11 +266,11 @@ export const BackfillSwap: React.FC<{ mode: BackfillSwapMode }> = ({ mode }) => 
           >
             <Box>
               <Typography variant="body2">
-                You receive {toBalance(requestedAmount ?? BigInt(0), TOKEN_DECIMALS)}{' '}
-                {outputSymbol}
+                You pay {toBalance(requestedBlnd ?? BigInt(0), TOKEN_DECIMALS)} BLND and receive{' '}
+                {toBalance(requestedAmount ?? BigInt(0), TOKEN_DECIMALS)} BLNT
               </Typography>
               <Typography variant="h5" sx={{ color: theme.palette.text.secondary }}>
-                1 BLND = 1 BLNT · Window closes: {deadline}
+                2 BLND = 1 BLNT · Window closes: {deadline}
               </Typography>
             </Box>
             <TxFeeSelector />
