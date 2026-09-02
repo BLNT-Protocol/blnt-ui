@@ -1,7 +1,6 @@
 import {
   BackstopPoolV3,
   ContractErrorType,
-  MigrationStatusV3,
   parseError,
   PoolClaimArgs,
   PoolContractV1,
@@ -16,7 +15,6 @@ import { useWallet } from '../../contexts/wallet';
 import {
   useBackstopPool,
   useHorizonAccount,
-  useBackstopV3,
   usePool,
   usePoolMeta,
   usePoolOracle,
@@ -43,7 +41,6 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
   const { data: poolMeta } = usePoolMeta(poolId);
   const isV3 = poolMeta?.version === Version.V3;
   const emissionsAsset = isV3 ? BLNT_ASSET : BLND_ASSET;
-  const { data: backstopV3 } = useBackstopV3(isV3);
   const { data: loadedBackstopPool } = useBackstopPool(poolMeta, isV3);
   const backstopPoolV3 =
     loadedBackstopPool instanceof BackstopPoolV3 ? loadedBackstopPool : undefined;
@@ -68,12 +65,6 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
     reserve_token_ids: claimedTokens,
     to: walletAddress,
   };
-  const v3PoolClaimsAvailable =
-    !isV3 ||
-    (backstopV3 !== undefined &&
-      backstopV3.migration.status === MigrationStatusV3.Active &&
-      (backstopV3.migration.scheduled_backfill === BigInt(0) ||
-        backstopV3.migration.funded_backfill === backstopV3.migration.scheduled_backfill));
   const sim_op = poolContract && walletAddress !== '' ? poolContract.claim(claimArgs) : '';
   const {
     data: simResult,
@@ -81,11 +72,7 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
     refetch: refetchSim,
   } = useSimulateOperation(
     sim_op,
-    showPoolEmissionsClaim &&
-      claimedTokens.length > 0 &&
-      sim_op !== '' &&
-      connected &&
-      v3PoolClaimsAvailable
+    showPoolEmissionsClaim && claimedTokens.length > 0 && sim_op !== '' && connected
   );
 
   if (pool === undefined || userPoolData === undefined) {
@@ -130,37 +117,7 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
   };
 
   function renderClaimButton() {
-    if (isV3 && !v3PoolClaimsAvailable) {
-      return (
-        <Box sx={{ width: '100%' }}>
-          <CustomButton
-            sx={{
-              width: '100%',
-              padding: '12px',
-              color: theme.palette.text.primary,
-              backgroundColor: theme.palette.background.paper,
-            }}
-          >
-            <Box sx={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center' }}>
-              <FlameIcon />
-              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                <StackedText
-                  title="Claim Pool Emissions"
-                  titleColor="inherit"
-                  text={`${toBalance(emissions)} ${emissionsAsset.code}`}
-                  textColor="inherit"
-                  type="large"
-                />
-                <Typography variant="body2" color={theme.palette.warning.main}>
-                  Pending V3 migration
-                </Typography>
-              </Box>
-            </Box>
-            <ArrowForwardIcon fontSize="inherit" />
-          </CustomButton>
-        </Box>
-      );
-    } else if (hasEmissionsTrustline && !isRestore && !isError) {
+    if (hasEmissionsTrustline && !isRestore && !isError) {
       return (
         <CustomButton
           sx={{

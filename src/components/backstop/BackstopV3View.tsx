@@ -5,9 +5,7 @@ import {
   BackstopPoolUserV3,
   BackstopPoolV3,
   BackstopTierV3,
-  BackstopV3,
   FixedMath,
-  MigrationStatusV3,
   parseError,
   parseResult,
 } from '@blend-capital/blend-sdk';
@@ -18,9 +16,6 @@ import { useWallet } from '../../contexts/wallet';
 import {
   useBackstopPool,
   useBackstopPoolUser,
-  useBackstopClaimableV3,
-  useBackstopTierTokenV3,
-  useBackstopV3,
   useHorizonAccount,
   useSimulateOperation,
   useTokenBalance,
@@ -28,7 +23,6 @@ import {
 import { PoolMeta } from '../../hooks/types';
 import theme from '../../theme';
 import { getTierIcon, getTierLabel } from '../../utils/backstop';
-import { estSingleSidedDeposit } from '../../utils/comet';
 import { toBalance, toPercentage } from '../../utils/formatter';
 import { CustomButton } from '../common/CustomButton';
 import { Divider } from '../common/Divider';
@@ -48,24 +42,13 @@ import { BackstopAuthorizationStatus } from './BackstopAuthorizationStatus';
 import { BackstopV3QueueItem } from './BackstopV3Action';
 
 interface V3ClaimButtonProps {
-  backstop: BackstopV3;
   poolMeta: PoolMeta;
   pool: BackstopPoolV3;
   tier: BackstopTierV3;
 }
 
-const V3ClaimButton: React.FC<V3ClaimButtonProps> = ({ backstop, poolMeta, pool, tier }) => {
+const V3ClaimButton: React.FC<V3ClaimButtonProps> = ({ poolMeta, pool, tier }) => {
   const { connected, walletAddress, backstopClaim, restore } = useWallet();
-  const claimsAvailable =
-    backstop.migration.status === MigrationStatusV3.Active &&
-    (backstop.migration.scheduled_backfill === BigInt(0) ||
-      backstop.migration.funded_backfill === backstop.migration.scheduled_backfill);
-  const {
-    data: estimate,
-    isLoading: isEstimateLoading,
-    isError: isEstimateError,
-  } = useBackstopClaimableV3(tier, poolMeta);
-  const { data: tierToken } = useBackstopTierTokenV3(tier, poolMeta);
   const args: BackstopClaimArgsV3 = {
     tier,
     from: walletAddress,
@@ -80,7 +63,7 @@ const V3ClaimButton: React.FC<V3ClaimButtonProps> = ({ backstop, poolMeta, pool,
     data: simulation,
     isLoading,
     refetch,
-  } = useSimulateOperation(operation, connected && operation !== '' && claimsAvailable);
+  } = useSimulateOperation(operation, connected && operation !== '');
   const isRestore = simulation !== undefined && rpc.Api.isSimulationRestore(simulation);
   const isError = simulation !== undefined && rpc.Api.isSimulationError(simulation);
   const amount =
@@ -93,16 +76,6 @@ const V3ClaimButton: React.FC<V3ClaimButtonProps> = ({ backstop, poolMeta, pool,
     tierData.tokens > BigInt(0)
       ? FixedMath.toFloat((amount * tierData.value) / tierData.tokens, 7)
       : 0;
-  const estimatedLpTokens =
-    estimate !== undefined && tierToken !== undefined
-      ? estSingleSidedDeposit('blnd', tierToken, estimate.amount)
-      : undefined;
-  const estimatedValue =
-    estimatedLpTokens !== undefined && tierData.tokens > BigInt(0)
-      ? estimatedLpTokens *
-        (FixedMath.toFloat(tierData.value, 7) / FixedMath.toFloat(tierData.tokens, 7))
-      : undefined;
-
   const handleClick = async () => {
     if (isRestore) {
       await restore(simulation);
@@ -113,29 +86,11 @@ const V3ClaimButton: React.FC<V3ClaimButtonProps> = ({ backstop, poolMeta, pool,
   };
 
   const error = isError ? parseError(simulation) : undefined;
-  const pendingAmount = isEstimateError
-    ? 'Estimate unavailable'
-    : isEstimateLoading || estimatedLpTokens === undefined
-    ? 'Estimating'
-    : toBalance(estimatedLpTokens, 7);
-  const pendingAmountHasUnit =
-    !isEstimateError && !isEstimateLoading && estimatedLpTokens !== undefined;
   return (
     <CustomButton
       onClick={handleClick}
-      disabled={
-        !connected ||
-        !claimsAvailable ||
-        isLoading ||
-        (!isRestore && (isError || amount === BigInt(0)))
-      }
-      title={
-        !claimsAvailable
-          ? 'Estimated LP output from accrued BLND at the current Comet state. Claiming compounds it into this tier after migration and exact backfill funding.'
-          : error
-          ? `Unable to claim: ${error.type}`
-          : undefined
-      }
+      disabled={!connected || isLoading || (!isRestore && (isError || amount === BigInt(0)))}
+      title={error ? `Unable to claim: ${error.type}` : undefined}
       sx={{
         width: '100%',
         margin: '6px',
@@ -159,26 +114,15 @@ const V3ClaimButton: React.FC<V3ClaimButtonProps> = ({ backstop, poolMeta, pool,
             <>
               <Box sx={{ display: 'flex', flexDirection: 'row' }}>
                 <Typography variant="h4" sx={{ marginRight: '6px' }}>
-                  {claimsAvailable ? toBalance(amount, 7) : pendingAmount}
+                  {toBalance(amount, 7)}
                 </Typography>
-                {(claimsAvailable || pendingAmountHasUnit) && (
-                  <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
-                    {tierLabel}
-                  </Typography>
-                )}
+                <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
+                  {tierLabel}
+                </Typography>
               </Box>
-              {(claimsAvailable || estimatedValue !== undefined) && (
-                <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
-                  ${toBalance(claimsAvailable ? value : estimatedValue)}
-                </Typography>
-              )}
-              {!claimsAvailable && (
-                <Typography variant="body2" sx={{ color: theme.palette.warning.main }}>
-                  {tierData.asset === BackstopAssetV3.BlntUsdc
-                    ? 'Pending V3 migration'
-                    : 'Not eligible for backfill'}
-                </Typography>
-              )}
+              <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
+                ${toBalance(value)}
+              </Typography>
             </>
           )}
         </Box>
@@ -383,7 +327,6 @@ const V3TierCard: React.FC<V3TierCardProps> = ({ poolMeta, pool, user, tier, wal
 
 export const BackstopV3View: React.FC<{ poolMeta: PoolMeta }> = ({ poolMeta }) => {
   const { connected } = useWallet();
-  const { data: backstop } = useBackstopV3();
   const { data: loadedPool } = useBackstopPool(poolMeta);
   const pool = loadedPool instanceof BackstopPoolV3 ? loadedPool : undefined;
   const emissionEligibleTiers =
@@ -408,7 +351,7 @@ export const BackstopV3View: React.FC<{ poolMeta: PoolMeta }> = ({ poolMeta }) =
     horizonAccount
   );
 
-  if (backstop === undefined || pool === undefined) return <Skeleton />;
+  if (pool === undefined) return <Skeleton />;
   const walletBalances = {
     [BackstopTierV3.FirstLoss]: connected ? firstLossBalance : BigInt(0),
     [BackstopTierV3.SecondLoss]: connected ? secondLossBalance : BigInt(0),
@@ -456,7 +399,7 @@ export const BackstopV3View: React.FC<{ poolMeta: PoolMeta }> = ({ poolMeta }) =
             </Typography>
             {emissionEligibleTiers.map((tier) => (
               <Row key={tier}>
-                <V3ClaimButton backstop={backstop} poolMeta={poolMeta} pool={pool} tier={tier} />
+                <V3ClaimButton poolMeta={poolMeta} pool={pool} tier={tier} />
               </Row>
             ))}
           </Section>

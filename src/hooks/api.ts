@@ -3,8 +3,6 @@ import {
   Backstop,
   BackstopAssetV3,
   BackstopConfig,
-  BackstopClaimableEstimateV3,
-  BackstopEmissionsV3,
   BackstopPool,
   BackstopPoolUser,
   BackstopPoolUserV3,
@@ -17,8 +15,6 @@ import {
   ErrorTypes,
   getOracleDecimals,
   loadAccessPermissions,
-  loadMigrationLifecycleV3,
-  MigrationLifecycleV3,
   Network,
   Pool,
   poolEventV1FromEventResponse,
@@ -77,12 +73,10 @@ const USER_STALE_TIME = 60 * 1000;
 const BACKSTOP_ID = process.env.NEXT_PUBLIC_BACKSTOP || '';
 const BACKSTOP_ID_V2 = process.env.NEXT_PUBLIC_BACKSTOP_V2 || '';
 const BACKSTOP_ID_V3 = process.env.NEXT_PUBLIC_BACKSTOP_V3 || '';
-const EMITTER_ID = process.env.NEXT_PUBLIC_EMITTER || '';
 const V3_POOL_WASM_HASH = process.env.NEXT_PUBLIC_V3_POOL_WASM_HASH || '';
 const BLND_TOKEN_ID = process.env.NEXT_PUBLIC_BLND_TOKEN || '';
 const USDC_TOKEN_ID = process.env.NEXT_PUBLIC_USDC_TOKEN || '';
 const BLND_USDC_COMET_ID = process.env.NEXT_PUBLIC_BLND_USDC_COMET || '';
-const BLND_XLM_COMET_ID = process.env.NEXT_PUBLIC_BLND_XLM_COMET || '';
 const ORACLE_PRICE_FETCHER = process.env.NEXT_PUBLIC_ORACLE_PRICE_FETCHER?.trim();
 const POOL_WASM_V1 = 'baf978f10efdbcd85747868bef8832845ea6809f7643b67a4ac0cd669327fc2c';
 const POOL_WASM_V2 = 'a41fc53d6753b6c04eb15b021c55052366a4c8e0e21bc72700f461264ec1350e';
@@ -470,58 +464,6 @@ export function useBackstopV3(enabled: boolean = true): UseQueryResult<BackstopV
     queryKey: ['backstopV3'],
     enabled: enabled && BACKSTOP_ID_V3 !== '',
     queryFn: async () => BackstopV3.load(network, BACKSTOP_ID_V3),
-  });
-}
-
-/** Derive the live v3 migration phase from candidate, emitter, and qualifying balances. */
-export function useBackstopMigrationLifecycleV3(
-  backstop: BackstopV3 | undefined,
-  enabled: boolean = true
-): UseQueryResult<MigrationLifecycleV3, Error> {
-  const { network } = useSettings();
-  return useQuery({
-    staleTime: DEFAULT_STALE_TIME,
-    queryKey: ['backstopMigrationLifecycleV3', backstop?.latestLedger],
-    enabled:
-      enabled &&
-      backstop !== undefined &&
-      BACKSTOP_ID_V2 !== '' &&
-      BACKSTOP_ID_V3 !== '' &&
-      EMITTER_ID !== '',
-    queryFn: async () =>
-      loadMigrationLifecycleV3(network, {
-        candidateAddress: BACKSTOP_ID_V3,
-        emitterAddress: EMITTER_ID,
-        expectedBlndXlmToken: BLND_XLM_COMET_ID,
-        incumbentBackstop: BACKSTOP_ID_V2,
-        incumbentBlndUsdcToken: BLND_USDC_COMET_ID,
-      }),
-    refetchInterval: DEFAULT_STALE_TIME,
-  });
-}
-
-/** Estimate one user's claimable BLND for a v3 backstop tier without invoking claim. */
-export function useBackstopClaimableV3(
-  tier: BackstopTierV3,
-  poolMeta: PoolMeta | undefined,
-  enabled: boolean = true
-): UseQueryResult<BackstopClaimableEstimateV3, Error> {
-  const { network } = useSettings();
-  const { walletAddress, connected } = useWallet();
-  return useQuery({
-    staleTime: DEFAULT_STALE_TIME,
-    queryKey: ['backstopClaimableV3', tier, poolMeta?.id, walletAddress],
-    enabled:
-      enabled &&
-      connected &&
-      walletAddress !== '' &&
-      poolMeta?.version === Version.V3 &&
-      BACKSTOP_ID_V3 !== '',
-    queryFn: async () =>
-      BackstopEmissionsV3.estimateClaimable(network, BACKSTOP_ID_V3, tier, walletAddress, [
-        poolMeta!.id,
-      ]),
-    refetchInterval: DEFAULT_STALE_TIME,
   });
 }
 
