@@ -1,0 +1,9 @@
+NETWORK_PASSPHRASE = "Test SDF Network ; September 2015"
+
+[[CURRENCIES]]
+code = "BLNT"
+issuer = "GAT5IMYQFKPV4W4HRKN7UONBKWEEQJL3X24XUSBHC2NY7P3ZSJ2ICAWT"
+display_decimals = 7
+name = "Blend Token"
+desc = "Testnet BLNT used by Blend V3"
+image = "https://blnt.trade/icons/tokens/blnd-yellow.svg"
