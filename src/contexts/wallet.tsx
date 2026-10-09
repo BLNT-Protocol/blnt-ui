@@ -197,7 +197,7 @@ async function initializeWalletKit(): Promise<WalletKit> {
 
   if (!walletConnectModule) {
     walletConnectModule = new WalletConnectModule({
-      projectId: 'a0fd1483122937b5cabbe0d85fa9c34e',
+      projectId: '054187587f6dfcce94d7e2c799aa9c58',
       metadata: {
         name: process.env.NEXT_PUBLIC_WALLET_CONNECT_NAME ?? 'Blend',
         description: `Blend is a liquidity protocol primitive, enabling the creation of money markets for any use case.`,
