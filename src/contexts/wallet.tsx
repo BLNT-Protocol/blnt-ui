@@ -806,7 +806,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     }
   }
 
-  /** Burn two legacy BLND for each pre-funded BLNT sent to the connected wallet. */
+  /** Burn one legacy BLND for each pre-funded BLNT sent to the connected wallet. */
   async function backfillSwapBlndForBlnt(
     user: string,
     blntAmount: bigint,

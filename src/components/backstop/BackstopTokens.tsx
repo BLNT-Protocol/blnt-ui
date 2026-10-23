@@ -101,7 +101,7 @@ export const BackstopTokens: React.FC = () => {
               <StackedText
                 title="Swap BLND"
                 titleColor="inherit"
-                text="2 BLND → 1 BLNT"
+                text="1 BLND → 1 BLNT"
                 textColor="inherit"
                 type="large"
               />

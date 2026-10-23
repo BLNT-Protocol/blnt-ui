@@ -25,7 +25,7 @@ import { Section, SectionSize } from '../common/Section';
 import { TxFeeSelector } from '../common/TxFeeSelector';
 
 const TOKEN_DECIMALS = 7;
-const BLND_PER_BLNT = BigInt(2);
+const BLND_PER_BLNT = BigInt(1);
 
 function parseAmount(input: string): bigint | undefined {
   if (!/^(?:\d+(?:\.\d{0,7})?|\.\d{1,7})$/.test(input)) return undefined;
@@ -270,7 +270,7 @@ export const BackfillSwap: React.FC = () => {
                 {toBalance(requestedAmount ?? BigInt(0), TOKEN_DECIMALS)} BLNT
               </Typography>
               <Typography variant="h5" sx={{ color: theme.palette.text.secondary }}>
-                2 BLND = 1 BLNT · Window closes: {deadline}
+                1 BLND = 1 BLNT · Window closes: {deadline}
               </Typography>
             </Box>
             <TxFeeSelector />

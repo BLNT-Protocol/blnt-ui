@@ -56,7 +56,7 @@ export const NavMenu = () => {
             backgroundColor: theme.palette.menu.main,
           }}
         >
-          <Link href="/emissions">
+          <Link href="/backfill">
             <MenuItem onClick={handleClose} sx={{ color: '#FFFFFF' }}>
               BLNT Backfill
             </MenuItem>
@@ -105,7 +105,7 @@ export const NavMenu = () => {
             backgroundColor: theme.palette.menu.main,
           }}
         >
-          <Link href="/emissions">
+          <Link href="/backfill">
             <MenuItem onClick={handleClose} sx={{ color: '#FFFFFF' }}>
               BLNT Backfill
             </MenuItem>

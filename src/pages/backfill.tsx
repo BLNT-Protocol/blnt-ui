@@ -5,7 +5,7 @@ import { BackstopTokens } from '../components/backstop/BackstopTokens';
 import { Divider } from '../components/common/Divider';
 import { Row } from '../components/common/Row';
 
-const EmissionsPage: NextPage = () => {
+const BackfillPage: NextPage = () => {
   return (
     <>
       <Row sx={{ margin: '12px', padding: '12px' }}>
@@ -23,4 +23,4 @@ const EmissionsPage: NextPage = () => {
   );
 };
 
-export default EmissionsPage;
+export default BackfillPage;
