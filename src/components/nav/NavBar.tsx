@@ -21,7 +21,7 @@ export const NavBar = () => {
       <SectionBase sx={{ width: '50px', margin: '6px' }}>
         <a href="https://blnt.trade" target="_blank" rel="noreferrer">
           <IconButton sx={{ width: '79%', height: '79%', margin: '6px' }}>
-            <Image src="/icons/blend_logo.svg" fill alt="Blend Logo" />
+            <Image src="/icon-192x192.png" fill alt="BLNT Logo" />
           </IconButton>
         </a>
       </SectionBase>
