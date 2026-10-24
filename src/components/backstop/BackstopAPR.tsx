@@ -25,11 +25,13 @@ export const BackstopAPR: React.FC<PoolComponentProps> = ({ poolId }) => {
   ) {
     const poolEst = PoolEstimate.build(pool.reserves, poolOracle);
     const backstopPoolEst = getBackstopPoolMetrics(backstop, backstopPoolData);
-    estBackstopApr =
-      (FixedMath.toFloat(BigInt(pool.metadata.backstopRate), 7) *
-        poolEst.avgBorrowApy *
-        poolEst.totalBorrowed) /
-      backstopPoolEst.totalSpotValue;
+    if (backstopPoolEst.totalSpotValue > 0) {
+      estBackstopApr =
+        (FixedMath.toFloat(BigInt(pool.metadata.backstopRate), 7) *
+          poolEst.avgBorrowApy *
+          poolEst.totalBorrowed) /
+        backstopPoolEst.totalSpotValue;
+    }
     if (!isV3) {
       backstopEmissionsApr = estSingleSidedDeposit(
         'blnd',

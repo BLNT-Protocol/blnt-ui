@@ -34,7 +34,7 @@ export const MarketCardCollapse: React.FC<MarketCardCollapseProps> = ({
   const theme = useTheme();
   const { viewType } = useSettings();
 
-  const estBackstopApr = poolEst
+  const estBackstopApr = poolEst && backstopPoolEst.totalSpotValue > 0
     ? ((pool.metadata.backstopRate / 1e7) * poolEst.avgBorrowApy * poolEst.totalBorrowed) /
       backstopPoolEst.totalSpotValue
     : undefined;

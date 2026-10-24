@@ -405,6 +405,15 @@ export const BackstopV3View: React.FC<{ poolMeta: PoolMeta }> = ({ poolMeta }) =
           </Section>
         </Row>
       )}
+      {pool.configuredTiers.length === 0 && (
+        <Row>
+          <Section width={SectionSize.FULL} sx={{ padding: '12px' }}>
+            <Typography variant="body2" color={theme.palette.text.secondary}>
+              This pool is configured without backstop tiers and does not accept backstop deposits.
+            </Typography>
+          </Section>
+        </Row>
+      )}
       {pool.configuredTiers.map((tier) => (
         <V3TierCard
           key={tier}
