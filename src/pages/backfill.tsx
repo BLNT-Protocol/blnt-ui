@@ -2,6 +2,7 @@ import { Box, Typography } from '@mui/material';
 import type { NextPage } from 'next';
 import { BackfillEmissions } from '../components/backstop/BackfillEmissions';
 import { BackstopTokens } from '../components/backstop/BackstopTokens';
+import { ContributorGrants } from '../components/backstop/ContributorGrants';
 import { Divider } from '../components/common/Divider';
 import { Row } from '../components/common/Row';
 
@@ -19,6 +20,7 @@ const BackfillPage: NextPage = () => {
       <Box sx={{ margin: '0px 12px' }}>
         <BackstopTokens />
       </Box>
+      <ContributorGrants />
     </>
   );
 };

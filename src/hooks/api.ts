@@ -61,8 +61,10 @@ import {
   BackfillEmissionsState,
   BackfillSwapState,
   BLNT_BACKFILL_ID,
+  ContributorGrantState,
   loadBackfillEmissionsState,
   loadBackfillSwapState,
+  loadContributorGrantState,
 } from '../utils/blnt_backfill';
 import { getOraclePrices } from '../utils/stellar_rpc';
 import { ReserveTokenMetadata } from '../utils/token';
@@ -101,6 +103,7 @@ export function useQueryClientCacheCleaner(): {
         query.queryKey[0] === 'balance' ||
         query.queryKey[0] === 'account' ||
         query.queryKey[0] === 'backfillEmissions' ||
+        query.queryKey[0] === 'contributorGrant' ||
         query.queryKey[0] === 'backfillSwap' ||
         query.queryKey[0] === 'sim',
     });
@@ -182,6 +185,22 @@ export function useBackfillEmissions(
     queryKey: ['backfillEmissions', BLNT_BACKFILL_ID, walletAddress],
     enabled: enabled && connected && walletAddress !== '' && BLNT_BACKFILL_ID !== '',
     queryFn: () => loadBackfillEmissionsState(network, BLNT_BACKFILL_ID, walletAddress),
+  });
+}
+
+/** Fetch the connected wallet's immutable contributor grant and live vesting state. */
+export function useContributorGrant(
+  enabled: boolean = true
+): UseQueryResult<ContributorGrantState | null, Error> {
+  const { network } = useSettings();
+  const { connected, walletAddress } = useWallet();
+
+  return useQuery({
+    staleTime: DEFAULT_STALE_TIME,
+    refetchInterval: DEFAULT_STALE_TIME,
+    queryKey: ['contributorGrant', BLNT_BACKFILL_ID, walletAddress],
+    enabled: enabled && connected && walletAddress !== '' && BLNT_BACKFILL_ID !== '',
+    queryFn: () => loadContributorGrantState(network, BLNT_BACKFILL_ID, walletAddress),
   });
 }
 

@@ -26,6 +26,7 @@ import { PoolMeta } from '../hooks/types';
 import {
   BLNT_BACKFILL_ID,
   buildClaimBackfillOperation,
+  buildClaimGrantOperation,
   buildSwapBlndForBlntOperation,
 } from '../utils/blnt_backfill';
 import { CometClient, CometLiquidityArgs, CometSingleSidedDepositArgs } from '../utils/comet';
@@ -104,6 +105,10 @@ export interface IWalletContext {
     sim: boolean
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
   backfillClaim(
+    user: string,
+    sim: boolean
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
+  contributorGrantClaim(
     user: string,
     sim: boolean
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
@@ -799,6 +804,21 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     }
   }
 
+  /** Claim the connected wallet's currently vested contributor grant. */
+  async function contributorGrantClaim(
+    user: string,
+    sim: boolean
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
+    if (connected && BLNT_BACKFILL_ID !== '') {
+      const operation = buildClaimGrantOperation(BLNT_BACKFILL_ID, user);
+      if (sim) {
+        return await simulateOperation(operation);
+      }
+      await invokeSorobanOperation(operation);
+      cleanWalletCache();
+    }
+  }
+
   /** Burn one legacy BLND for each pre-funded BLNT sent to the connected wallet. */
   async function backfillSwapBlndForBlnt(
     user: string,
@@ -957,6 +977,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         backstopDequeueWithdrawal,
         backstopClaim,
         backfillClaim,
+        contributorGrantClaim,
         backfillSwapBlndForBlnt,
         cometSingleSidedDeposit,
         cometJoin,

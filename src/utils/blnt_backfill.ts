@@ -23,6 +23,14 @@ export interface BackfillEmissionsState {
   vestingEnd: bigint;
 }
 
+export interface ContributorGrantState {
+  totalAllocation: bigint;
+  vestedAllocation: bigint;
+  claimable: bigint;
+  vestingStart: bigint;
+  vestingEnd: bigint;
+}
+
 export interface BackfillSwapState {
   legacyBlndToken: string;
   blntToken: string;
@@ -38,6 +46,10 @@ export function getBackfillAllocation(address: string): bigint {
 
 export function buildClaimBackfillOperation(backfillId: string, user: string): xdr.Operation {
   return new Contract(backfillId).call('claim_backfill', Address.fromString(user).toScVal());
+}
+
+export function buildClaimGrantOperation(backfillId: string, user: string): xdr.Operation {
+  return new Contract(backfillId).call('claim_grant', Address.fromString(user).toScVal());
 }
 
 export function buildSwapBlndForBlntOperation(
@@ -113,6 +125,27 @@ function calculateVestedAllocation(
   return (allocation * (now - start)) / duration;
 }
 
+async function loadContributorGrantAllocation(
+  stellarRpc: rpc.Server,
+  backfillId: string,
+  grantee: string
+): Promise<bigint> {
+  const grantClaimsKey = xdr.LedgerKey.contractData(
+    new xdr.LedgerKeyContractData({
+      contract: Address.fromString(backfillId).toScAddress(),
+      key: xdr.ScVal.scvVec([xdr.ScVal.scvSymbol('GrantClaims')]),
+      durability: xdr.ContractDataDurability.persistent(),
+    })
+  );
+  const response = await stellarRpc.getLedgerEntries(grantClaimsKey);
+  if (response.entries.length !== 1) return BigInt(0);
+
+  const entry = response.entries[0].val.contractData().val();
+  const grants = scValToNative(entry) as Record<string, unknown>;
+  const allocation = grants?.[grantee];
+  return typeof allocation === 'bigint' && allocation > BigInt(0) ? allocation : BigInt(0);
+}
+
 export async function loadBackfillEmissionsState(
   network: Network,
   backfillId: string,
@@ -137,6 +170,35 @@ export async function loadBackfillEmissionsState(
     ]),
     simulateBigIntView(stellarRpc, network.passphrase, backfillId, 'get_vesting_start'),
     simulateBigIntView(stellarRpc, network.passphrase, backfillId, 'get_vesting_end'),
+    stellarRpc.getLatestLedger(),
+  ]);
+  const now = BigInt(latestLedger.closeTime);
+
+  return {
+    totalAllocation,
+    vestedAllocation: calculateVestedAllocation(totalAllocation, vestingStart, vestingEnd, now),
+    claimable,
+    vestingStart,
+    vestingEnd,
+  };
+}
+
+export async function loadContributorGrantState(
+  network: Network,
+  backfillId: string,
+  grantee: string
+): Promise<ContributorGrantState | null> {
+  const stellarRpc = new rpc.Server(network.rpc, network.opts);
+  const totalAllocation = await loadContributorGrantAllocation(stellarRpc, backfillId, grantee);
+  if (totalAllocation === BigInt(0)) return null;
+
+  const granteeScVal = Address.fromString(grantee).toScVal();
+  const [claimable, vestingStart, vestingEnd, latestLedger] = await Promise.all([
+    simulateBigIntView(stellarRpc, network.passphrase, backfillId, 'get_grant_claimable', [
+      granteeScVal,
+    ]),
+    simulateBigIntView(stellarRpc, network.passphrase, backfillId, 'get_grant_vesting_start'),
+    simulateBigIntView(stellarRpc, network.passphrase, backfillId, 'get_grant_vesting_end'),
     stellarRpc.getLatestLedger(),
   ]);
   const now = BigInt(latestLedger.closeTime);
