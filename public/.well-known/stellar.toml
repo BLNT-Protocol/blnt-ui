@@ -2,7 +2,7 @@ NETWORK_PASSPHRASE = "Public Global Stellar Network ; September 2015"
 
 [[CURRENCIES]]
 code = "BLNT"
-issuer = "GBRDT5KNVHGUNRK432N2HDQLXLA33KAFXSNXLUUFZOZEJF2C76HI4UZC"
+issuer = "GAP2ACGH3O6TRFAERGM4USJ6XWU3U2BFIK224JPV6NI3CUNEEEGTBTFB"
 display_decimals = 7
 name = "Blent Token"
 desc = "BLNT used by Blend V3"
