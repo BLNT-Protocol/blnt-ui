@@ -5,12 +5,19 @@ import Link from 'next/link';
 import { Banner } from './Banner';
 
 const PROPOSAL_URL = 'https://github.com/blend-capital/blend-contracts-v2/discussions/63';
+const GITHUB_URL = 'https://github.com/BLNT-Protocol/blnt-contracts-v3';
 
 export const V3CandidateBanner = () => {
   const theme = useTheme();
+  const isMainnet = process.env.NEXT_PUBLIC_PASSPHRASE === Networks.PUBLIC;
   const isTestnet = process.env.NEXT_PUBLIC_PASSPHRASE === Networks.TESTNET;
 
-  if (!isTestnet) return null;
+  if (!isMainnet && !isTestnet) return null;
+
+  const palette = isMainnet ? theme.palette.primary : theme.palette.warning;
+  const networkLabel = isMainnet ? 'MAINNET' : 'TESTNET';
+  const actionUrl = isMainnet ? GITHUB_URL : PROPOSAL_URL;
+  const actionLabel = isMainnet ? 'View GitHub' : 'View proposal';
 
   const actionSx = {
     display: 'inline-flex',
@@ -36,8 +43,8 @@ export const V3CandidateBanner = () => {
         gap: '12px',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
-        backgroundColor: theme.palette.warning.opaque,
-        border: `1px solid ${theme.palette.warning.main}`,
+        backgroundColor: palette.opaque,
+        border: `1px solid ${palette.main}`,
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 520px' }}>
@@ -46,33 +53,34 @@ export const V3CandidateBanner = () => {
           sx={{
             borderRadius: '4px',
             padding: '3px 7px',
-            backgroundColor: theme.palette.warning.main,
+            backgroundColor: palette.main,
             color: theme.palette.background.default,
             fontSize: '0.75rem',
             fontWeight: 700,
             letterSpacing: '0.04em',
           }}
         >
-          TESTNET
+          {networkLabel}
         </Box>
         <Typography variant="body2">
-          The Blend V3 candidate is currently deployed on Stellar testnet for evaluation.
+          BLNT V3 is currently deployed on Stellar {isMainnet ? 'mainnet' : 'testnet'}
+          {isTestnet ? ' for evaluation' : ''}.
           Pre-incident BLND:USDC Comet V1 LP holders can claim a BLNT backfill.
         </Typography>
       </Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
         <Box
           component="a"
-          href={PROPOSAL_URL}
+          href={actionUrl}
           target="_blank"
           rel="noreferrer"
           sx={{
             ...actionSx,
-            border: `1px solid ${theme.palette.warning.main}`,
-            '&:hover': { backgroundColor: theme.palette.warning.opaque },
+            border: `1px solid ${palette.main}`,
+            '&:hover': { backgroundColor: palette.opaque },
           }}
         >
-          View proposal
+          {actionLabel}
           <OpenInNewIcon sx={{ fontSize: '1rem' }} />
         </Box>
         <Link href="/backfill" style={{ textDecoration: 'none' }}>
@@ -80,8 +88,8 @@ export const V3CandidateBanner = () => {
             component="span"
             sx={{
               ...actionSx,
-              backgroundColor: theme.palette.warning.main,
-              '&:hover': { backgroundColor: theme.palette.warning.dark },
+              backgroundColor: palette.main,
+              '&:hover': { backgroundColor: palette.dark },
             }}
           >
             Claim

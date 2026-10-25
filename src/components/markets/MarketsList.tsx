@@ -1,11 +1,16 @@
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { Box, BoxProps, Typography } from '@mui/material';
+import { Networks } from '@stellar/stellar-sdk';
 import { useEffect, useMemo, useState } from 'react';
 import { useSettings } from '../../contexts';
 import { useBackstop } from '../../hooks/api';
 import theme from '../../theme';
 import { ReserveTokenMetadata } from '../../utils/token';
-import { Version } from '../../utils/version';
+import {
+  MAINNET_V1_REWARD_ZONE,
+  MAINNET_V2_REWARD_ZONE,
+  Version,
+} from '../../utils/version';
 import { Row } from '../common/Row';
 import { Section, SectionSize } from '../common/Section';
 import { MarketCard } from './MarketCard';
@@ -43,7 +48,13 @@ export const MarketsList: React.FC<MarketListProps> = ({ version }) => {
     .filter((value, index, self) => self.indexOf(value) === index)
     .sort();
 
-  const rewardZone = [...(backstop?.config?.rewardZone ?? [])].reverse();
+  const rewardZone = useMemo(() => {
+    const onChainRewardZone = [...(backstop?.config?.rewardZone ?? [])].reverse();
+    if (process.env.NEXT_PUBLIC_PASSPHRASE === Networks.TESTNET) return onChainRewardZone;
+    if (version === Version.V1) return MAINNET_V1_REWARD_ZONE;
+    if (version === Version.V2) return MAINNET_V2_REWARD_ZONE;
+    return onChainRewardZone;
+  }, [backstop?.config?.rewardZone, version]);
   const configuredPoolIds = useMemo(
     () => configuredPools.filter((pool) => pool.version === version).map((pool) => pool.id),
     [configuredPools, version]
