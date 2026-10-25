@@ -1,9 +1,4 @@
-import {
-  BackstopAssetV3,
-  BackstopPoolV3,
-  BackstopTierV3,
-  Version,
-} from '@blend-capital/blend-sdk';
+import { BackstopAssetV3, BackstopPoolV3, BackstopTierV3 } from '@blend-capital/blend-sdk';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { Box, IconButton, Typography, useTheme } from '@mui/material';
 import type { NextPage } from 'next';
@@ -30,6 +25,7 @@ import {
 import { getTierIcon } from '../utils/backstop';
 import { toBalance } from '../utils/formatter';
 import { BLND_ASSET, BLNT_ASSET, USDC_ASSET, V3_USDC_ASSET } from '../utils/token_display';
+import { Version } from '../utils/version';
 
 const BackstopToken: NextPage = () => {
   const theme = useTheme();
@@ -39,16 +35,21 @@ const BackstopToken: NextPage = () => {
   const tier = Object.values(BackstopTierV3).includes(requestedTier as BackstopTierV3)
     ? (requestedTier as BackstopTierV3)
     : undefined;
-  const version = router.query.version === Version.V2 ? Version.V2 : Version.V1;
+  const version =
+    router.query.version === Version.V2_1
+      ? Version.V2_1
+      : router.query.version === Version.V2
+      ? Version.V2
+      : Version.V1;
   const poolId = typeof router.query.poolId === 'string' ? router.query.poolId : undefined;
-  const {
-    data: poolMeta,
-    isError: isPoolMetaError,
-  } = usePoolMeta(poolId ?? '', tier !== undefined);
-  const {
-    data: loadedBackstopPool,
-    isError: isBackstopPoolError,
-  } = useBackstopPool(poolMeta, tier !== undefined && poolMeta?.version === Version.V3);
+  const { data: poolMeta, isError: isPoolMetaError } = usePoolMeta(
+    poolId ?? '',
+    tier !== undefined
+  );
+  const { data: loadedBackstopPool, isError: isBackstopPoolError } = useBackstopPool(
+    poolMeta,
+    tier !== undefined && poolMeta?.version === Version.V3
+  );
   const v3Pool = loadedBackstopPool instanceof BackstopPoolV3 ? loadedBackstopPool : undefined;
   const configuredTier = tier === undefined ? undefined : v3Pool?.tiers[tier];
   const isManageableTier =
@@ -76,8 +77,7 @@ const BackstopToken: NextPage = () => {
   const isV3 = poolMeta?.version === Version.V3;
   const primaryAsset = isV3 ? BLNT_ASSET : BLND_ASSET;
   const primarySymbol = primaryAsset.code;
-  const pairAsset =
-    pairSymbol === 'XLM' ? Asset.native() : isV3 ? V3_USDC_ASSET : USDC_ASSET;
+  const pairAsset = pairSymbol === 'XLM' ? Asset.native() : isV3 ? V3_USDC_ASSET : USDC_ASSET;
   const { data: horizonAccount } = useHorizonAccount();
   const { data: blndBalanceRes } = useTokenBalance(blndTokenId, primaryAsset, horizonAccount);
   const { data: usdcBalanceRes } = useTokenBalance(pairTokenId, pairAsset, horizonAccount);
@@ -260,9 +260,19 @@ const BackstopToken: NextPage = () => {
       </Row>
 
       {showJoinPool ? (
-        <BackstopJoinAnvil key={tier ?? version} tier={tier} version={version} poolMeta={poolMeta} />
+        <BackstopJoinAnvil
+          key={tier ?? version}
+          tier={tier}
+          version={version}
+          poolMeta={poolMeta}
+        />
       ) : (
-        <BackstopExitAnvil key={tier ?? version} tier={tier} version={version} poolMeta={poolMeta} />
+        <BackstopExitAnvil
+          key={tier ?? version}
+          tier={tier}
+          version={version}
+          poolMeta={poolMeta}
+        />
       )}
     </>
   );

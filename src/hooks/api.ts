@@ -31,7 +31,7 @@ import {
   Positions,
   TokenMetadata,
   UserBalance,
-  Version,
+  Version as SdkVersion,
 } from '@blend-capital/blend-sdk';
 import {
   Account,
@@ -66,13 +66,17 @@ import {
 } from '../utils/blnt_backfill';
 import { getOraclePrices } from '../utils/stellar_rpc';
 import { ReserveTokenMetadata } from '../utils/token';
+import {
+  BACKSTOP_IDS,
+  isV2Contracts,
+  normalizeVersion,
+  Version,
+  VersionLike,
+} from '../utils/version';
 import { NOT_BLEND_POOL_ERROR_MESSAGE, PoolMeta } from './types';
 
 const DEFAULT_STALE_TIME = 30 * 1000;
 const USER_STALE_TIME = 60 * 1000;
-const BACKSTOP_ID = process.env.NEXT_PUBLIC_BACKSTOP || '';
-const BACKSTOP_ID_V2 = process.env.NEXT_PUBLIC_BACKSTOP_V2 || '';
-const BACKSTOP_ID_V3 = process.env.NEXT_PUBLIC_BACKSTOP_V3 || '';
 const V3_POOL_WASM_HASH = process.env.NEXT_PUBLIC_V3_POOL_WASM_HASH || '';
 const BLND_TOKEN_ID = process.env.NEXT_PUBLIC_BLND_TOKEN || '';
 const USDC_TOKEN_ID = process.env.NEXT_PUBLIC_USDC_TOKEN || '';
@@ -221,7 +225,7 @@ export function usePoolMeta(
         }
         if (metadata.wasmHash === POOL_WASM_V1) {
           // v1 pool - validate backstop is correct
-          if (metadata.backstop === BACKSTOP_ID) {
+          if (metadata.backstop === BACKSTOP_IDS[Version.V1]) {
             return { id: poolId, version: Version.V1, ...metadata } as PoolMeta;
           }
         } else if (
@@ -232,18 +236,24 @@ export function usePoolMeta(
               '6a7c67449f6bad0d5f641cfbdf03f430ec718faa85107ecb0b97df93410d1c43')
         ) {
           // v2 pool - validate backstop is correct
-          if (metadata.backstop === BACKSTOP_ID_V2) {
+          if (metadata.backstop === BACKSTOP_IDS[Version.V2]) {
             return { id: poolId, version: Version.V2, ...metadata } as PoolMeta;
+          }
+          if (metadata.backstop === BACKSTOP_IDS[Version.V2_1]) {
+            return { id: poolId, version: Version.V2_1, ...metadata } as PoolMeta;
           }
           // Blend's current testnet lane uses v2 pool bytecode. Treat it as
           // the UI's v1/team lane so it remains distinct from our v2 stack.
-          if (network.passphrase === Networks.TESTNET && metadata.backstop === BACKSTOP_ID) {
+          if (
+            network.passphrase === Networks.TESTNET &&
+            metadata.backstop === BACKSTOP_IDS[Version.V1]
+          ) {
             return { id: poolId, version: Version.V1, ...metadata } as PoolMeta;
           }
         } else if (
           V3_POOL_WASM_HASH !== '' &&
           metadata.wasmHash === V3_POOL_WASM_HASH &&
-          metadata.backstop === BACKSTOP_ID_V3
+          metadata.backstop === BACKSTOP_IDS[Version.V3]
         ) {
           return { id: poolId, version: Version.V3, ...metadata } as PoolMeta;
         }
@@ -287,11 +297,11 @@ export function usePool(
         try {
           if (poolMeta.version === Version.V3) {
             return await PoolV3.loadWithMetadata(network, poolMeta.id, poolMeta);
-          } else if (poolMeta.version === Version.V2) {
+          } else if (isV2Contracts(poolMeta.version)) {
             return await PoolV2.loadWithMetadata(network, poolMeta.id, poolMeta);
           } else if (poolMeta.wasmHash === POOL_WASM_V2) {
             const pool = await PoolV2.loadWithMetadata(network, poolMeta.id, poolMeta);
-            pool.version = Version.V1;
+            pool.version = SdkVersion.V1;
             return pool;
           } else {
             return await PoolV1.loadWithMetadata(network, poolMeta.id, poolMeta);
@@ -417,7 +427,7 @@ export function usePoolUser(
  * @returns Query result with the backstop data.
  */
 export function useBackstop(
-  version: Version | undefined,
+  version: VersionLike | undefined,
   enabled: boolean = true
 ): UseQueryResult<Backstop, Error> {
   const { network } = useSettings();
@@ -426,8 +436,9 @@ export function useBackstop(
     queryKey: ['backstop', version],
     enabled: enabled && version !== undefined,
     queryFn: async () => {
-      if (version === Version.V3) {
-        const v3 = await BackstopV3.load(network, BACKSTOP_ID_V3);
+      const deployment = normalizeVersion(version);
+      if (deployment === Version.V3) {
+        const v3 = await BackstopV3.load(network, BACKSTOP_IDS[Version.V3]);
         const blndUsdcToken = await BackstopToken.load(
           network,
           BLND_USDC_COMET_ID,
@@ -444,14 +455,14 @@ export function useBackstop(
           v3.latestLedger
         );
         return new Backstop(
-          BACKSTOP_ID_V3,
+          BACKSTOP_IDS[Version.V3],
           config,
           blndUsdcToken,
           v3.latestLedger,
           Math.floor(Date.now() / 1000)
         );
       }
-      return await Backstop.load(network, version === Version.V2 ? BACKSTOP_ID_V2 : BACKSTOP_ID);
+      return await Backstop.load(network, BACKSTOP_IDS[deployment]);
     },
   });
 }
@@ -462,8 +473,8 @@ export function useBackstopV3(enabled: boolean = true): UseQueryResult<BackstopV
   return useQuery({
     staleTime: DEFAULT_STALE_TIME,
     queryKey: ['backstopV3'],
-    enabled: enabled && BACKSTOP_ID_V3 !== '',
-    queryFn: async () => BackstopV3.load(network, BACKSTOP_ID_V3),
+    enabled: enabled && BACKSTOP_IDS[Version.V3] !== '',
+    queryFn: async () => BackstopV3.load(network, BACKSTOP_IDS[Version.V3]),
   });
 }
 
@@ -480,9 +491,7 @@ export function useBackstopTierTokenV3(
   const lpTokenId = tierData?.token;
   const isBlntXlm = tierData?.asset === BackstopAssetV3.BlntXlm;
   const isBlntUsdc = tierData?.asset === BackstopAssetV3.BlntUsdc;
-  const pairTokenId = isBlntXlm
-    ? Asset.native().contractId(network.passphrase)
-    : USDC_TOKEN_ID;
+  const pairTokenId = isBlntXlm ? Asset.native().contractId(network.passphrase) : USDC_TOKEN_ID;
   return useQuery({
     staleTime: DEFAULT_STALE_TIME,
     queryKey: ['backstopTierTokenV3', tier, lpTokenId],
@@ -514,7 +523,7 @@ export interface ManagedBackstopToken {
 /** Resolve the token bindings used by the shared V2/V3 Comet management UI. */
 export function useManagedBackstopToken(
   tier?: BackstopTierV3,
-  version: Version = Version.V1,
+  version: VersionLike = Version.V1,
   poolMeta?: PoolMeta
 ): ManagedBackstopToken {
   const { network } = useSettings();
@@ -531,9 +540,7 @@ export function useManagedBackstopToken(
   return {
     backstopToken: isV3 ? v3BackstopToken : legacyBackstop?.backstopToken,
     blndTokenId: isV3 ? BLND_TOKEN_ID : legacyBackstop?.config.blndTkn ?? '',
-    cometPoolId: isV3
-      ? v3TierToken ?? ''
-      : legacyBackstop?.config.backstopTkn ?? '',
+    cometPoolId: isV3 ? v3TierToken ?? '' : legacyBackstop?.config.backstopTkn ?? '',
     lpSymbol: isV3 ? (pairIsXlm ? 'BLNT-XLM LP' : 'BLNT-USDC LP') : 'BLND-USDC LP',
     pairSymbol: pairIsXlm ? 'XLM' : 'USDC',
     pairTokenId: pairIsXlm
@@ -562,14 +569,14 @@ export function useBackstopPool(
     queryFn: async () => {
       if (poolMeta !== undefined) {
         if (poolMeta.version === Version.V3) {
-          return await BackstopPoolV3.load(network, BACKSTOP_ID_V3, poolMeta.id);
+          return await BackstopPoolV3.load(network, BACKSTOP_IDS[Version.V3], poolMeta.id);
         }
         if (poolMeta.version === Version.V1 && poolMeta.wasmHash === POOL_WASM_V2) {
-          return await BackstopPoolV2.load(network, BACKSTOP_ID, poolMeta.id);
+          return await BackstopPoolV2.load(network, BACKSTOP_IDS[Version.V1], poolMeta.id);
         }
-        return poolMeta.version === Version.V2
-          ? await BackstopPoolV2.load(network, BACKSTOP_ID_V2, poolMeta.id)
-          : await BackstopPoolV1.load(network, BACKSTOP_ID, poolMeta.id);
+        return isV2Contracts(poolMeta.version)
+          ? await BackstopPoolV2.load(network, BACKSTOP_IDS[poolMeta.version], poolMeta.id)
+          : await BackstopPoolV1.load(network, BACKSTOP_IDS[Version.V1], poolMeta.id);
       }
     },
   });
@@ -603,11 +610,16 @@ export function useBackstopPoolUser(
     queryFn: async () => {
       if (walletAddress !== '' && poolMeta !== undefined) {
         if (poolMeta.version === Version.V3) {
-          return await BackstopPoolUserV3.load(network, BACKSTOP_ID_V3, poolMeta.id, walletAddress);
+          return await BackstopPoolUserV3.load(
+            network,
+            BACKSTOP_IDS[Version.V3],
+            poolMeta.id,
+            walletAddress
+          );
         }
         return await BackstopPoolUser.load(
           network,
-          poolMeta.version === Version.V2 ? BACKSTOP_ID_V2 : BACKSTOP_ID,
+          BACKSTOP_IDS[poolMeta.version],
           poolMeta.id,
           walletAddress
         );

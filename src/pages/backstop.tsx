@@ -12,7 +12,6 @@ import {
   FixedMath,
   parseError,
   parseResult,
-  Version,
 } from '@blend-capital/blend-sdk';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { Box, Tooltip, Typography } from '@mui/material';
@@ -52,6 +51,7 @@ import { PoolMeta } from '../hooks/types';
 import theme from '../theme';
 import { CometClient } from '../utils/comet';
 import { toBalance, toPercentage } from '../utils/formatter';
+import { BACKSTOP_IDS, isV2Contracts, Version } from '../utils/version';
 
 const LegacyBackstop: React.FC<{ poolMeta: PoolMeta; safePoolId: string }> = ({
   poolMeta,
@@ -60,7 +60,7 @@ const LegacyBackstop: React.FC<{ poolMeta: PoolMeta; safePoolId: string }> = ({
   const { isV2Enabled } = useSettings();
   const { connected, walletAddress, backstopClaim, restore } = useWallet();
   const usesV2Backstop =
-    poolMeta.version === Version.V2 ||
+    isV2Contracts(poolMeta.version) ||
     poolMeta.wasmHash === 'a41fc53d6753b6c04eb15b021c55052366a4c8e0e21bc72700f461264ec1350e';
   const { data: loadedBackstop } = useBackstop(poolMeta.version);
   const backstop = loadedBackstop as Backstop | undefined;
@@ -104,9 +104,7 @@ const LegacyBackstop: React.FC<{ poolMeta: PoolMeta; safePoolId: string }> = ({
       min_lp_tokens_out: BigInt(0),
     };
     let backstopContract = new BackstopContractV2(
-      poolMeta.version === Version.V1
-        ? process.env.NEXT_PUBLIC_BACKSTOP ?? ''
-        : process.env.NEXT_PUBLIC_BACKSTOP_V2 ?? ''
+      poolMeta.version === Version.V1 ? BACKSTOP_IDS[Version.V1] : BACKSTOP_IDS[poolMeta.version]
     );
     claimOp =
       safePoolId && walletAddress !== '' && backstopContract

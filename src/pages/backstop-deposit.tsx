@@ -1,4 +1,4 @@
-import { Backstop, BackstopPool, BackstopPoolEst, Version } from '@blend-capital/blend-sdk';
+import { Backstop, BackstopPool, BackstopPoolEst } from '@blend-capital/blend-sdk';
 import { Box, Typography, useTheme } from '@mui/material';
 import type { NextPage } from 'next';
 import { useRouter } from 'next/router';
@@ -20,6 +20,7 @@ import {
 } from '../hooks/api';
 import { NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
 import { toBalance, toPercentage } from '../utils/formatter';
+import { Version } from '../utils/version';
 
 const BackstopDeposit: NextPage = () => {
   const theme = useTheme();

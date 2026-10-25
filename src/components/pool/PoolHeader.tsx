@@ -1,5 +1,5 @@
-import { Version } from '@blend-capital/blend-sdk';
 import { Box, BoxProps, Typography } from '@mui/material';
+import { Version } from '../../utils/version';
 import { VersionTag } from '../common/VersionTag';
 import { PoolIcon } from './PoolIcon';
 

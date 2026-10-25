@@ -1,6 +1,6 @@
-import { Version } from '@blend-capital/blend-sdk';
 import { BoxProps } from '@mui/material';
 import { useSettings } from '../../contexts';
+import { Version } from '../../utils/version';
 import { PoolHeader } from '../pool/PoolHeader';
 import { GoBackButton } from './GoBackButton';
 import { Section, SectionSize } from './Section';

@@ -5,7 +5,6 @@ import {
   PoolClaimArgs,
   PoolContractV1,
   PositionsEstimate,
-  Version,
 } from '@blend-capital/blend-sdk';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { Box, SxProps, Theme, Typography, useTheme } from '@mui/material';
@@ -24,6 +23,7 @@ import {
 import { toBalance, toPercentage } from '../../utils/formatter';
 import { requiresTrustline } from '../../utils/horizon';
 import { BLND_ASSET, BLNT_ASSET } from '../../utils/token_display';
+import { Version } from '../../utils/version';
 import { CustomButton } from '../common/CustomButton';
 import { FlameIcon } from '../common/FlameIcon';
 import { Icon } from '../common/Icon';
@@ -48,7 +48,8 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
     !isV3 ||
     (backstopPoolV3?.configuredTiers.some(
       (tier) => backstopPoolV3.tier(tier).data.blnt_emission_eligible
-    ) ?? false);
+    ) ??
+      false);
   const { data: account, refetch: refechAccount } = useHorizonAccount();
   const { data: pool } = usePool(poolMeta);
   const { data: poolOracle } = usePoolOracle(pool);

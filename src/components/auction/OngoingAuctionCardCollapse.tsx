@@ -10,7 +10,6 @@ import {
   RESERVE_BORROW_ALLOWED,
   RESERVE_SUPPLY_ALLOWED,
   SubmitArgs,
-  Version,
 } from '@blend-capital/blend-sdk';
 import { Box, Typography, useTheme } from '@mui/material';
 import { rpc } from '@stellar/stellar-sdk';
@@ -25,6 +24,7 @@ import { estAuction } from '../../utils/auction';
 import { toBalance, toPercentage } from '../../utils/formatter';
 import { scaleInputToBigInt } from '../../utils/scval';
 import { getErrorFromSim, getPoolPermissionError } from '../../utils/txSim';
+import { getPoolDeploymentVersion, Version } from '../../utils/version';
 import { AnvilAlert } from '../common/AnvilAlert';
 import { DividerSection } from '../common/DividerSection';
 import { InputBar } from '../common/InputBar';
@@ -59,7 +59,7 @@ export const OngoingAuctionCardCollapse: React.FC<OngoingAuctionCardExpandedProp
   const { viewType } = useSettings();
   const { walletAddress, connected, poolSubmit, isLoading, txType, txStatus } = useWallet();
   const poolMeta = useMemo(
-    () => ({ id: pool.id, version: pool.version, ...pool.metadata } as PoolMeta),
+    () => ({ id: pool.id, version: getPoolDeploymentVersion(pool), ...pool.metadata } as PoolMeta),
     [pool]
   );
   const {
@@ -68,7 +68,7 @@ export const OngoingAuctionCardCollapse: React.FC<OngoingAuctionCardExpandedProp
     isLoading: isPermissionLoading,
   } = usePoolPermissions(poolMeta, expanded && auction.type === AuctionType.Liquidation);
   const { data: poolOracle } = usePoolOracle(pool, expanded);
-  const { data: backstop } = useBackstop(pool.version, expanded);
+  const { data: backstop } = useBackstop(poolMeta.version, expanded);
   const { data: poolUser } = usePoolUser(pool, expanded);
 
   const [simResponse, setSimResponse] = useState<rpc.Api.SimulateTransactionResponse>();
@@ -169,11 +169,7 @@ export const OngoingAuctionCardCollapse: React.FC<OngoingAuctionCardExpandedProp
       ],
     };
 
-    let response = await poolSubmit(
-      poolMeta,
-      submitArgs,
-      sim
-    );
+    let response = await poolSubmit(poolMeta, submitArgs, sim);
     if (response && sim) {
       setSimResponse(response);
       if (rpc.Api.isSimulationSuccess(response)) {

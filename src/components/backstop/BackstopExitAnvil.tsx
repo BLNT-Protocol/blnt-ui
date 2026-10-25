@@ -1,4 +1,4 @@
-import { BackstopTierV3, Version } from '@blend-capital/blend-sdk';
+import { BackstopTierV3 } from '@blend-capital/blend-sdk';
 import { Box, Typography, useTheme } from '@mui/material';
 import { Asset, rpc } from '@stellar/stellar-sdk';
 import Image from 'next/image';
@@ -12,13 +12,9 @@ import { estExitPool } from '../../utils/comet';
 import { toBalance } from '../../utils/formatter';
 import { requiresTrustline } from '../../utils/horizon';
 import { scaleInputToBigInt } from '../../utils/scval';
-import {
-  BLND_ASSET,
-  BLNT_ASSET,
-  USDC_ASSET,
-  V3_USDC_ASSET,
-} from '../../utils/token_display';
+import { BLND_ASSET, BLNT_ASSET, USDC_ASSET, V3_USDC_ASSET } from '../../utils/token_display';
 import { SubmitError, getErrorFromSim } from '../../utils/txSim';
+import { Version } from '../../utils/version';
 import { AnvilAlert } from '../common/AnvilAlert';
 import { InputBar } from '../common/InputBar';
 import { InputButton } from '../common/InputButton';
@@ -53,8 +49,7 @@ export const BackstopExitAnvil: React.FC<{
   const isV3 = poolMeta?.version === Version.V3;
   const primaryAsset = isV3 ? BLNT_ASSET : BLND_ASSET;
   const primarySymbol = primaryAsset.code;
-  const pairAsset =
-    pairSymbol === 'XLM' ? Asset.native() : isV3 ? V3_USDC_ASSET : USDC_ASSET;
+  const pairAsset = pairSymbol === 'XLM' ? Asset.native() : isV3 ? V3_USDC_ASSET : USDC_ASSET;
   const { data: horizonAccount } = useHorizonAccount();
   const { data: blndBalanceRes } = useTokenBalance(blndTokenId, primaryAsset, horizonAccount);
   const { data: usdcBalanceRes } = useTokenBalance(pairTokenId, pairAsset, horizonAccount);

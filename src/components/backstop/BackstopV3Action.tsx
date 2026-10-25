@@ -8,7 +8,6 @@ import {
   parseResult,
   Q4WV3,
   TierBackstopActionArgsV3,
-  Version,
 } from '@blend-capital/blend-sdk';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { Box, CircularProgress, Typography, useTheme } from '@mui/material';
@@ -26,6 +25,7 @@ import {
   useTokenBalance,
   useSimulateOperation,
 } from '../../hooks/api';
+import { Version } from '../../utils/version';
 import { RPC_DEBOUNCE_DELAY, useDebouncedState } from '../../hooks/debounce';
 import { PoolMeta } from '../../hooks/types';
 import { getTierIcon, getTierLabel } from '../../utils/backstop';
@@ -221,11 +221,7 @@ export const BackstopV3Action: React.FC<{
   const pool = loadedPool instanceof BackstopPoolV3 ? loadedPool : undefined;
   const user = loadedUser instanceof BackstopPoolUserV3 ? loadedUser : undefined;
   const tierPool = pool?.tiers[tier];
-  const { data: walletBalance } = useTokenBalance(
-    tierPool?.data.token,
-    undefined,
-    horizonAccount
-  );
+  const { data: walletBalance } = useTokenBalance(tierPool?.data.token, undefined, horizonAccount);
   const [amount, setAmount] = useState('');
   const [simulation, setSimulation] = useState<rpc.Api.SimulateTransactionResponse>();
   const [loadingEstimate, setLoadingEstimate] = useState(false);

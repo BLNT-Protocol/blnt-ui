@@ -1,6 +1,7 @@
-import { BackstopPoolUserV3, BackstopPoolV3, FixedMath, Version } from '@blend-capital/blend-sdk';
+import { BackstopPoolUserV3, BackstopPoolV3, FixedMath } from '@blend-capital/blend-sdk';
 import { Box, Typography, useTheme } from '@mui/material';
 import { useBackstop, useBackstopPool, useBackstopPoolUser, usePoolMeta } from '../../hooks/api';
+import { isV2Contracts, Version } from '../../utils/version';
 import { PoolComponentProps } from '../common/PoolComponentProps';
 import { Row } from '../common/Row';
 import { Section, SectionSize } from '../common/Section';
@@ -35,7 +36,6 @@ export const BackstopQueueMod: React.FC<PoolComponentProps> = ({ poolId }) => {
     poolMeta.wasmHash === 'a41fc53d6753b6c04eb15b021c55052366a4c8e0e21bc72700f461264ec1350e'
       ? Version.V2
       : poolMeta.version;
-
   return (
     <Row>
       <Section width={SectionSize.FULL} sx={{ display: 'flex', flexDirection: 'column' }}>
@@ -67,7 +67,7 @@ export const BackstopQueueMod: React.FC<PoolComponentProps> = ({ poolId }) => {
           .sort((a, b) => Number(a.exp) - Number(b.exp))
           .map((q4w, index) => {
             let canUnqueue = false;
-            if (withdrawalVersion === Version.V2) {
+            if (isV2Contracts(withdrawalVersion)) {
               // V2 unqueues from the most recently queued entry
               canUnqueue = totalQ4WEntries - 1 === index;
             } else {

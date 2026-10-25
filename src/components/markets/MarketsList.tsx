@@ -1,4 +1,3 @@
-import { Version } from '@blend-capital/blend-sdk';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { Box, BoxProps, Typography } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
@@ -6,6 +5,7 @@ import { useSettings } from '../../contexts';
 import { useBackstop } from '../../hooks/api';
 import theme from '../../theme';
 import { ReserveTokenMetadata } from '../../utils/token';
+import { Version } from '../../utils/version';
 import { Row } from '../common/Row';
 import { Section, SectionSize } from '../common/Section';
 import { MarketCard } from './MarketCard';

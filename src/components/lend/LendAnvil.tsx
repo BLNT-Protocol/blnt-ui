@@ -9,7 +9,6 @@ import {
   RESERVE_BORROW_ALLOWED,
   RESERVE_SUPPLY_ALLOWED,
   SubmitArgs,
-  Version,
 } from '@blend-capital/blend-sdk';
 import { Box, Typography, useTheme } from '@mui/material';
 import { rpc } from '@stellar/stellar-sdk';
@@ -27,6 +26,7 @@ import {
   useTokenBalance,
   useTokenMetadata,
 } from '../../hooks/api';
+import { Version } from '../../utils/version';
 import { RPC_DEBOUNCE_DELAY, useDebouncedState } from '../../hooks/debounce';
 import { toBalance, toCompactAddress, toPercentage } from '../../utils/formatter';
 import { getAssetReserve } from '../../utils/horizon';

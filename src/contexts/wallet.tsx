@@ -16,17 +16,9 @@ import {
   Positions,
   SubmitArgs,
   TierBackstopActionArgsV3,
-  Version,
 } from '@blend-capital/blend-sdk';
 import { SwkAppDarkTheme } from '@creit.tech/stellar-wallets-kit';
-import {
-  Asset,
-  Operation,
-  rpc,
-  Transaction,
-  TransactionBuilder,
-  xdr,
-} from '@stellar/stellar-sdk';
+import { Asset, Operation, rpc, Transaction, TransactionBuilder, xdr } from '@stellar/stellar-sdk';
 import React, { useContext, useEffect, useState } from 'react';
 import { useLocalStorageState } from '../hooks';
 import { useQueryClientCacheCleaner } from '../hooks/api';
@@ -37,6 +29,7 @@ import {
   buildSwapBlndForBlntOperation,
 } from '../utils/blnt_backfill';
 import { CometClient, CometLiquidityArgs, CometSingleSidedDepositArgs } from '../utils/comet';
+import { BACKSTOP_IDS, isV2Contracts, Version } from '../utils/version';
 import { useSettings } from './settings';
 
 type WalletKit = typeof import('@creit.tech/stellar-wallets-kit').StellarWalletsKit;
@@ -48,13 +41,13 @@ type BackstopActionArgs = PoolBackstopActionArgs | TierBackstopActionArgsV3;
 const POOL_WASM_V2 = 'a41fc53d6753b6c04eb15b021c55052366a4c8e0e21bc72700f461264ec1350e';
 
 function usesV2Backstop(poolMeta: PoolMeta): boolean {
-  return poolMeta.version === Version.V2 || poolMeta.wasmHash === POOL_WASM_V2;
+  return isV2Contracts(poolMeta.version) || poolMeta.wasmHash === POOL_WASM_V2;
 }
 
 function backstopV2Id(poolMeta: PoolMeta): string {
   return poolMeta.version === Version.V1
-    ? process.env.NEXT_PUBLIC_BACKSTOP ?? ''
-    : process.env.NEXT_PUBLIC_BACKSTOP_V2 ?? '';
+    ? BACKSTOP_IDS[Version.V1]
+    : BACKSTOP_IDS[poolMeta.version];
 }
 
 const WALLET_CONNECT_ID = 'wallet_connect';
@@ -614,12 +607,12 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     if (connected) {
       const operationString =
         poolMeta.version === Version.V3
-          ? new BackstopContractV3(process.env.NEXT_PUBLIC_BACKSTOP_V3 ?? '').deposit(
+          ? new BackstopContractV3(BACKSTOP_IDS[Version.V3]).deposit(
               args as TierBackstopActionArgsV3
             )
           : usesV2Backstop(poolMeta)
           ? new BackstopContractV2(backstopV2Id(poolMeta)).deposit(args as PoolBackstopActionArgs)
-          : new BackstopContractV1(process.env.NEXT_PUBLIC_BACKSTOP ?? '').deposit(
+          : new BackstopContractV1(BACKSTOP_IDS[Version.V1]).deposit(
               args as PoolBackstopActionArgs
             );
       const operation = xdr.Operation.fromXDR(operationString, 'base64');
@@ -651,13 +644,13 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     if (connected) {
       const operationString =
         poolMeta.version === Version.V3
-          ? new BackstopContractV3(process.env.NEXT_PUBLIC_BACKSTOP_V3 ?? '').withdraw({
+          ? new BackstopContractV3(BACKSTOP_IDS[Version.V3]).withdraw({
               ...(args as TierBackstopActionArgsV3),
               to: args.from,
             })
           : usesV2Backstop(poolMeta)
           ? new BackstopContractV2(backstopV2Id(poolMeta)).withdraw(args as PoolBackstopActionArgs)
-          : new BackstopContractV1(process.env.NEXT_PUBLIC_BACKSTOP ?? '').withdraw(
+          : new BackstopContractV1(BACKSTOP_IDS[Version.V1]).withdraw(
               args as PoolBackstopActionArgs
             );
       const operation = xdr.Operation.fromXDR(operationString, 'base64');
@@ -689,14 +682,14 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     if (connected) {
       const operationString =
         poolMeta.version === Version.V3
-          ? new BackstopContractV3(process.env.NEXT_PUBLIC_BACKSTOP_V3 ?? '').queueWithdrawal(
+          ? new BackstopContractV3(BACKSTOP_IDS[Version.V3]).queueWithdrawal(
               args as TierBackstopActionArgsV3
             )
           : usesV2Backstop(poolMeta)
           ? new BackstopContractV2(backstopV2Id(poolMeta)).queueWithdrawal(
               args as PoolBackstopActionArgs
             )
-          : new BackstopContractV1(process.env.NEXT_PUBLIC_BACKSTOP ?? '').queueWithdrawal(
+          : new BackstopContractV1(BACKSTOP_IDS[Version.V1]).queueWithdrawal(
               args as PoolBackstopActionArgs
             );
       const operation = xdr.Operation.fromXDR(operationString, 'base64');
@@ -727,14 +720,14 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     if (connected) {
       const operationString =
         poolMeta.version === Version.V3
-          ? new BackstopContractV3(process.env.NEXT_PUBLIC_BACKSTOP_V3 ?? '').dequeueWithdrawal(
+          ? new BackstopContractV3(BACKSTOP_IDS[Version.V3]).dequeueWithdrawal(
               args as TierBackstopActionArgsV3
             )
           : usesV2Backstop(poolMeta)
           ? new BackstopContractV2(backstopV2Id(poolMeta)).dequeueWithdrawal(
               args as PoolBackstopActionArgs
             )
-          : new BackstopContractV1(process.env.NEXT_PUBLIC_BACKSTOP ?? '').dequeueWithdrawal(
+          : new BackstopContractV1(BACKSTOP_IDS[Version.V1]).dequeueWithdrawal(
               args as PoolBackstopActionArgs
             );
       const operation = xdr.Operation.fromXDR(operationString, 'base64');
@@ -765,7 +758,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     if (connected) {
       let operation = '';
       if (poolMeta.version === Version.V3) {
-        operation = new BackstopContractV3(process.env.NEXT_PUBLIC_BACKSTOP_V3 ?? '').claim(
+        operation = new BackstopContractV3(BACKSTOP_IDS[Version.V3]).claim(
           claimArgs as BackstopClaimArgsV3
         );
       } else if (usesV2Backstop(poolMeta)) {
@@ -773,7 +766,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
           claimArgs as BackstopClaimV2Args
         );
       } else {
-        operation = new BackstopContractV1(process.env.NEXT_PUBLIC_BACKSTOP ?? '').claim(
+        operation = new BackstopContractV1(BACKSTOP_IDS[Version.V1]).claim(
           claimArgs as BackstopClaimV1Args
         );
       }

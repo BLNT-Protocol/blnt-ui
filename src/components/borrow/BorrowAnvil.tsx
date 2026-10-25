@@ -8,7 +8,6 @@ import {
   RequestType,
   RESERVE_BORROW_ALLOWED,
   SubmitArgs,
-  Version,
 } from '@blend-capital/blend-sdk';
 import { Box, CircularProgress, Typography, useTheme } from '@mui/material';
 import { Asset, rpc } from '@stellar/stellar-sdk';
@@ -26,6 +25,7 @@ import {
   useTokenMetadata,
 } from '../../hooks/api';
 import { RPC_DEBOUNCE_DELAY, useDebouncedState } from '../../hooks/debounce';
+import { Version } from '../../utils/version';
 import { toBalance, toCompactAddress, toPercentage } from '../../utils/formatter';
 import { requiresTrustline } from '../../utils/horizon';
 import { scaleInputToBigInt } from '../../utils/scval';

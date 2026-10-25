@@ -4,22 +4,23 @@ import {
   BACKSTOP_DEPOSIT_ALLOWED,
   RESERVE_BORROW_ALLOWED,
   RESERVE_SUPPLY_ALLOWED,
-  Version,
 } from '@blend-capital/blend-sdk';
 import { useWallet } from '../../contexts/wallet';
 import { usePoolPermissions } from '../../hooks/api';
 import { PoolMeta } from '../../hooks/types';
 import { toCompactAddress } from '../../utils/formatter';
+import { Version } from '../../utils/version';
 import { Row } from '../common/Row';
 
 export const PoolAccessBanner: React.FC<{ poolMeta: PoolMeta | undefined }> = ({ poolMeta }) => {
   const theme = useTheme();
   const { connected } = useWallet();
   const controller = poolMeta?.version === Version.V3 ? poolMeta.accessController : undefined;
-  const { data: permissions, isError, isLoading } = usePoolPermissions(
-    poolMeta,
-    controller !== undefined
-  );
+  const {
+    data: permissions,
+    isError,
+    isLoading,
+  } = usePoolPermissions(poolMeta, controller !== undefined);
 
   if (controller === undefined) {
     return null;
@@ -33,11 +34,9 @@ export const PoolAccessBanner: React.FC<{ poolMeta: PoolMeta | undefined }> = ({
   } else if (connected && permissions !== undefined) {
     const allowed = (permission: number) =>
       (permissions & permission) === permission ? 'allowed' : 'blocked';
-    walletStatus = `Wallet permissions: supply ${allowed(
-      RESERVE_SUPPLY_ALLOWED
-    )}, borrow ${allowed(RESERVE_BORROW_ALLOWED)}, backstop deposit ${allowed(
-      BACKSTOP_DEPOSIT_ALLOWED
-    )}.`;
+    walletStatus = `Wallet permissions: supply ${allowed(RESERVE_SUPPLY_ALLOWED)}, borrow ${allowed(
+      RESERVE_BORROW_ALLOWED
+    )}, backstop deposit ${allowed(BACKSTOP_DEPOSIT_ALLOWED)}.`;
   }
 
   return (
