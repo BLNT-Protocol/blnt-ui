@@ -1,4 +1,4 @@
-name: Deploy testnet UI to GitHub Pages
+name: Deploy mainnet UI to GitHub Pages
 
 on:
   push:
@@ -50,11 +50,11 @@ jobs:
           npm ci
           npm run build
 
-      - name: Install and build testnet UI
+      - name: Install and build mainnet UI
         working-directory: blnt-ui
         run: |
           npm ci
-          npm run build:testnet
+          npm run build:mainnet
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
