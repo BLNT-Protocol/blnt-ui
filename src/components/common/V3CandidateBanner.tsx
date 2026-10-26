@@ -63,9 +63,20 @@ export const V3CandidateBanner = () => {
           {networkLabel}
         </Box>
         <Typography variant="body2">
-          BLNT V3 is currently deployed on Stellar {isMainnet ? 'mainnet' : 'testnet'}
-          {isTestnet ? ' for evaluation' : ''}.
-          Pre-incident BLND:USDC Comet V1 LP holders can claim a BLNT backfill.
+          {isMainnet ? (
+            <>
+              BLNT V3 is live on Stellar mainnet but has not yet been independently audited.
+              Eligible pre-incident BLND:USDC Comet V1 LP holders can claim their BLNT backfill.{' '}
+              <Box component="span" sx={{ fontWeight: 700 }}>
+                UNAUDITED—USE AT YOUR OWN RISK.
+              </Box>
+            </>
+          ) : (
+            <>
+              BLNT V3 is currently deployed on Stellar testnet for evaluation. Pre-incident
+              BLND:USDC Comet V1 LP holders can claim a BLNT backfill.
+            </>
+          )}
         </Typography>
       </Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
