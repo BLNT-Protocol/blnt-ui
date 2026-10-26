@@ -1,5 +1,6 @@
 import {
   Backstop,
+  BackstopPoolEmissionsV3,
   BackstopPool,
   BackstopPoolEst,
   BackstopPoolUser,
@@ -8,12 +9,46 @@ import {
   BackstopPoolV3,
   BackstopAssetV3,
   BackstopTierV3,
+  BackstopToken,
   FixedMath,
+  annualizedBackstopEmissionV3,
 } from '@blend-capital/blend-sdk';
+import { estSingleSidedDeposit } from './comet';
 
 export interface BackstopPoolMetrics {
   q4wPercentage: number;
   totalSpotValue: number;
+}
+
+export type BackstopTierTokensV3 = Partial<Record<BackstopTierV3, BackstopToken>>;
+
+/**
+ * Estimate the pool-wide v3 backstop emissions APY at current stream and Comet prices.
+ * Queued capital is excluded because it does not earn BLNT emissions.
+ */
+export function getBackstopEmissionsAprV3(
+  pool: BackstopPoolV3,
+  emissions: BackstopPoolEmissionsV3 | undefined,
+  tierTokens: BackstopTierTokensV3
+): number | undefined {
+  if (emissions === undefined) return undefined;
+  const activeValue = FixedMath.toFloat(pool.totalActiveValue(), 7);
+  if (activeValue <= 0) return 0;
+
+  let annualEmissionValue = 0;
+  for (const tier of pool.configuredTiers) {
+    const tierData = pool.tier(tier).data;
+    if (!tierData.blnt_emission_eligible) continue;
+    const annualBlnt = annualizedBackstopEmissionV3(emissions.by_tier[tier]);
+    if (annualBlnt === BigInt(0) || tierData.tokens === BigInt(0)) continue;
+    const tierToken = tierTokens[tier];
+    if (tierToken === undefined) return undefined;
+    const annualLpTokens = estSingleSidedDeposit('blnd', tierToken, annualBlnt);
+    const tierTokenValue =
+      FixedMath.toFloat(tierData.value, 7) / FixedMath.toFloat(tierData.tokens, 7);
+    annualEmissionValue += annualLpTokens * tierTokenValue;
+  }
+  return annualEmissionValue / activeValue;
 }
 
 export function getBackstopPoolMetrics(

@@ -3,7 +3,9 @@ import {
   Backstop,
   BackstopAssetV3,
   BackstopConfig,
+  BackstopEmissionsV3,
   BackstopPool,
+  BackstopPoolEmissionsV3,
   BackstopPoolUser,
   BackstopPoolUserV3,
   BackstopPoolV3,
@@ -598,6 +600,30 @@ export function useBackstopPool(
           : await BackstopPoolV1.load(network, BACKSTOP_IDS[Version.V1], poolMeta.id);
       }
     },
+  });
+}
+
+/** Fetch the current per-tier emission streams for one v3 backstop pool. */
+export function useBackstopPoolEmissionsV3(
+  poolMeta: PoolMeta | undefined,
+  enabled: boolean = true
+): UseQueryResult<BackstopPoolEmissionsV3, Error> {
+  const { network } = useSettings();
+  const { data: loadedPool } = useBackstopPool(poolMeta, enabled);
+  const pool = loadedPool instanceof BackstopPoolV3 ? loadedPool : undefined;
+  const tiers =
+    pool?.configuredTiers.filter((tier) => pool.tier(tier).data.blnt_emission_eligible) ?? [];
+  return useQuery({
+    staleTime: DEFAULT_STALE_TIME,
+    queryKey: ['backstopPoolEmissionsV3', poolMeta?.id, ...tiers],
+    enabled:
+      enabled &&
+      poolMeta?.version === Version.V3 &&
+      pool !== undefined &&
+      tiers.length > 0 &&
+      BACKSTOP_IDS[Version.V3] !== '',
+    queryFn: async () =>
+      BackstopEmissionsV3.loadPoolEmissions(network, BACKSTOP_IDS[Version.V3], poolMeta!.id, tiers),
   });
 }
 
