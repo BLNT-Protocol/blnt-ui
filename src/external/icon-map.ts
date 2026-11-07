@@ -10,9 +10,15 @@ type PoolIconConfig = {
   icon: string;
 };
 
+type ReserveTokenIconConfig = {
+  assetId: string;
+  icon: string;
+};
+
 type IconMap = {
   contractTokenIcons?: ContractTokenIconConfig[];
   poolIcons?: PoolIconConfig[];
+  reserveTokenIcons?: ReserveTokenIconConfig[];
 };
 
 const typedIconMap = iconMap as IconMap;
@@ -31,4 +37,10 @@ export function getPoolIcon(poolAddress: string | undefined): string {
       ({ poolAddress: configuredPoolAddress }) => configuredPoolAddress === poolAddress
     )?.icon ?? `/icons/pools/blend.svg`
   );
+}
+
+export function getReserveTokenIcon(assetId: string): string | undefined {
+  return typedIconMap.reserveTokenIcons?.find(
+    ({ assetId: configuredAssetId }) => configuredAssetId === assetId
+  )?.icon;
 }

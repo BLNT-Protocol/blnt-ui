@@ -9,5 +9,47 @@
       "icon": "/icons/tokens/xSolvBTC.svg"
     }
   ],
+  "reserveTokenIcons": [
+    {
+      "assetId": "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA",
+      "icon": "/icons/tokens/xlm.svg"
+    },
+    {
+      "assetId": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+      "icon": "/icons/tokens/usdc.svg"
+    },
+    {
+      "assetId": "CDTKPWPLOURQA2SGTKTUQOWRCBZEORB4BWBOMJ3D3ZTQQSGE5F6JBQLV",
+      "icon": "/icons/tokens/eurc.png"
+    },
+    {
+      "assetId": "CAUIKL3IYGMERDRUN6YSCLWVAKIFG5Q4YJHUKM4S4NJZQIA3BAS6OJPK",
+      "icon": "/icons/tokens/aqua.png"
+    },
+    {
+      "assetId": "CB226ZOEYXTBPD3QEGABTJYSKZVBP2PASEISLG3SBMTN5CE4QZUVZ3CE",
+      "icon": "/icons/tokens/usdglo.png"
+    },
+    {
+      "assetId": "CBLV4ATSIWU67CFSQU2NVRKINQIKUZ2ODSZBUJTJ43VJVRSBTZYOPNUR",
+      "icon": "/icons/tokens/ustry.png"
+    },
+    {
+      "assetId": "CAL6ER2TI6CTRAY6BFXWNWA7WTYXUXTQCHUBCIBU5O6KM3HJFG6Z6VXV",
+      "icon": "/icons/tokens/cetes.png"
+    },
+    {
+      "assetId": "CCCRWH6Q3FNP3I2I57BDLM5AFAT7O6OF6GKQOC6SSJNDAVRZ57SPHGU2",
+      "icon": "/icons/tokens/pyusd.png"
+    },
+    {
+      "assetId": "CBSJZEIO5C7KC2SF3MKSNXXJSW5G3VTNBX4ATMKUI3B2MR4JKM4R26YF",
+      "icon": "/icons/tokens/usdt0.png"
+    },
+    {
+      "assetId": "CBIJBDNZNF4X35BJ4FFZWCDBSCKOP5NB4PLG4SNENRMLAPYG4P5FM6VN",
+      "icon": "/icons/tokens/SolvBTC.svg"
+    }
+  ],
   "poolIcons": []
 }
