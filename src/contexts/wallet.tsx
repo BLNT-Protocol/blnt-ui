@@ -25,8 +25,11 @@ import { useQueryClientCacheCleaner } from '../hooks/api';
 import { PoolMeta } from '../hooks/types';
 import {
   BLNT_BACKFILL_ID,
+  BLNT_LOCKUP_BACKFILL_ID,
+  buildClaimAndFundOperation,
   buildClaimBackfillOperation,
   buildClaimGrantOperation,
+  buildClaimLockupBackfillOperation,
   buildSwapBlndForBlntOperation,
 } from '../utils/blnt_backfill';
 import { CometClient, CometLiquidityArgs, CometSingleSidedDepositArgs } from '../utils/comet';
@@ -148,6 +151,11 @@ export interface IWalletContext {
     user: string,
     sim: boolean
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
+  lockupBackfillClaim(
+    user: string,
+    sim: boolean
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
+  contributorClaimAndFund(sim: boolean): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
   backfillSwapBlndForBlnt(
     user: string,
     blntAmount: bigint,
@@ -863,6 +871,35 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     }
   }
 
+  /** Claim the connected wallet's currently vested lockup-remediation allocation. */
+  async function lockupBackfillClaim(
+    user: string,
+    sim: boolean
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
+    if (connected && BLNT_LOCKUP_BACKFILL_ID !== '') {
+      const operation = buildClaimLockupBackfillOperation(BLNT_LOCKUP_BACKFILL_ID, user);
+      if (sim) {
+        return await simulateOperation(operation);
+      }
+      await invokeSorobanOperation(operation);
+      cleanWalletCache();
+    }
+  }
+
+  /** Claim the owner's vested contributor grant and atomically fund lockup remediation. */
+  async function contributorClaimAndFund(
+    sim: boolean
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
+    if (connected && BLNT_LOCKUP_BACKFILL_ID !== '') {
+      const operation = buildClaimAndFundOperation(BLNT_LOCKUP_BACKFILL_ID);
+      if (sim) {
+        return await simulateOperation(operation);
+      }
+      await invokeSorobanOperation(operation);
+      cleanWalletCache();
+    }
+  }
+
   /** Burn one legacy BLND for each pre-funded BLNT sent to the connected wallet. */
   async function backfillSwapBlndForBlnt(
     user: string,
@@ -1022,6 +1059,8 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         backstopClaim,
         backfillClaim,
         contributorGrantClaim,
+        lockupBackfillClaim,
+        contributorClaimAndFund,
         backfillSwapBlndForBlnt,
         cometSingleSidedDeposit,
         cometJoin,

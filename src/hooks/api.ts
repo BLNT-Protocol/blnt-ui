@@ -64,10 +64,14 @@ import {
   BackfillEmissionsState,
   BackfillSwapState,
   BLNT_BACKFILL_ID,
+  BLNT_LOCKUP_BACKFILL_ID,
   ContributorGrantState,
+  LockupBackfillClaimState,
   loadBackfillEmissionsState,
   loadBackfillSwapState,
   loadContributorGrantState,
+  loadLockupBackfillClaimState,
+  loadLockupBackfillOwner,
 } from '../utils/blnt_backfill';
 import { getOraclePrices } from '../utils/stellar_rpc';
 import { ReserveTokenMetadata } from '../utils/token';
@@ -107,6 +111,7 @@ export function useQueryClientCacheCleaner(): {
         query.queryKey[0] === 'account' ||
         query.queryKey[0] === 'backfillEmissions' ||
         query.queryKey[0] === 'contributorGrant' ||
+        query.queryKey[0] === 'lockupBackfillClaim' ||
         query.queryKey[0] === 'backfillSwap' ||
         query.queryKey[0] === 'sim',
     });
@@ -204,6 +209,35 @@ export function useContributorGrant(
     queryKey: ['contributorGrant', BLNT_BACKFILL_ID, walletAddress],
     enabled: enabled && connected && walletAddress !== '' && BLNT_BACKFILL_ID !== '',
     queryFn: () => loadContributorGrantState(network, BLNT_BACKFILL_ID, walletAddress),
+  });
+}
+
+/** Fetch the immutable owner authorized to claim and fund the lockup backfill contract. */
+export function useLockupBackfillOwner(enabled: boolean = true): UseQueryResult<string, Error> {
+  const { network } = useSettings();
+
+  return useQuery({
+    staleTime: Infinity,
+    queryKey: ['lockupBackfillOwner', BLNT_LOCKUP_BACKFILL_ID],
+    enabled: enabled && BLNT_LOCKUP_BACKFILL_ID !== '',
+    queryFn: () => loadLockupBackfillOwner(network, BLNT_LOCKUP_BACKFILL_ID),
+  });
+}
+
+/** Fetch the connected wallet's lockup-remediation allocation and live claim state. */
+export function useLockupBackfillClaim(
+  enabled: boolean = true
+): UseQueryResult<LockupBackfillClaimState | null, Error> {
+  const { network } = useSettings();
+  const { connected, walletAddress } = useWallet();
+
+  return useQuery({
+    staleTime: DEFAULT_STALE_TIME,
+    refetchInterval: DEFAULT_STALE_TIME,
+    queryKey: ['lockupBackfillClaim', BLNT_LOCKUP_BACKFILL_ID, walletAddress],
+    enabled: enabled && connected && walletAddress !== '' && BLNT_LOCKUP_BACKFILL_ID !== '',
+    queryFn: () =>
+      loadLockupBackfillClaimState(network, BLNT_LOCKUP_BACKFILL_ID, walletAddress),
   });
 }
 

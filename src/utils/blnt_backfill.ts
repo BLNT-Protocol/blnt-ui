@@ -14,6 +14,7 @@ import allocations from '../data/blnt_backfill_allocations.json';
 
 const VIEW_SOURCE = 'GANXGJV2RNOFMOSQ2DTI3RKDBAVERXUVFC27KW3RLVQCLB3RYNO3AAI4';
 export const BLNT_BACKFILL_ID = process.env.NEXT_PUBLIC_BLNT_BACKFILL || '';
+export const BLNT_LOCKUP_BACKFILL_ID = process.env.NEXT_PUBLIC_BLNT_LOCKUP_BACKFILL || '';
 
 export interface BackfillEmissionsState {
   totalAllocation: bigint;
@@ -29,6 +30,14 @@ export interface ContributorGrantState {
   claimable: bigint;
   vestingStart: bigint;
   vestingEnd: bigint;
+}
+
+export interface LockupBackfillClaimState {
+  totalAllocation: bigint;
+  vestedAllocation: bigint;
+  claimable: bigint;
+  claimed: bigint;
+  unclaimed: bigint;
 }
 
 export interface BackfillSwapState {
@@ -50,6 +59,20 @@ export function buildClaimBackfillOperation(backfillId: string, user: string): x
 
 export function buildClaimGrantOperation(backfillId: string, user: string): xdr.Operation {
   return new Contract(backfillId).call('claim_grant', Address.fromString(user).toScVal());
+}
+
+export function buildClaimAndFundOperation(lockupBackfillId: string): xdr.Operation {
+  return new Contract(lockupBackfillId).call('claim_and_fund');
+}
+
+export function buildClaimLockupBackfillOperation(
+  lockupBackfillId: string,
+  beneficiary: string
+): xdr.Operation {
+  return new Contract(lockupBackfillId).call(
+    'claim',
+    Address.fromString(beneficiary).toScVal()
+  );
 }
 
 export function buildSwapBlndForBlntOperation(
@@ -209,6 +232,70 @@ export async function loadContributorGrantState(
     claimable,
     vestingStart,
     vestingEnd,
+  };
+}
+
+export async function loadLockupBackfillOwner(
+  network: Network,
+  lockupBackfillId: string
+): Promise<string> {
+  const stellarRpc = new rpc.Server(network.rpc, network.opts);
+  const response = await stellarRpc.simulateTransaction(
+    buildViewTransaction(network.passphrase, lockupBackfillId, 'get_config')
+  );
+  if (!rpc.Api.isSimulationSuccess(response) || response.result?.retval === undefined) {
+    throw new Error('Unable to load BLNT lockup backfill configuration');
+  }
+
+  const config = scValToNative(response.result.retval) as Record<string, unknown>;
+  const owner = config?.owner;
+  if (typeof owner !== 'string') {
+    throw new Error('BLNT lockup backfill configuration has no owner');
+  }
+  return owner;
+}
+
+export async function loadLockupBackfillClaimState(
+  network: Network,
+  lockupBackfillId: string,
+  beneficiary: string
+): Promise<LockupBackfillClaimState | null> {
+  const stellarRpc = new rpc.Server(network.rpc, network.opts);
+  const response = await stellarRpc.simulateTransaction(
+    buildViewTransaction(network.passphrase, lockupBackfillId, 'get_claim', [
+      Address.fromString(beneficiary).toScVal(),
+    ])
+  );
+
+  if (rpc.Api.isSimulationError(response) && response.error.includes('Error(Contract, #1510)')) {
+    return null;
+  }
+  if (!rpc.Api.isSimulationSuccess(response) || response.result?.retval === undefined) {
+    throw new Error('Unable to load BLNT lockup backfill claim');
+  }
+
+  const claim = scValToNative(response.result.retval) as Record<string, unknown>;
+  const allocation = claim?.allocation;
+  const claimed = claim?.claimed;
+  const payable = claim?.payable;
+  const unclaimed = claim?.unclaimed;
+  const vested = claim?.vested;
+  if (
+    typeof allocation !== 'bigint' ||
+    typeof claimed !== 'bigint' ||
+    typeof payable !== 'bigint' ||
+    typeof unclaimed !== 'bigint' ||
+    typeof vested !== 'bigint'
+  ) {
+    throw new Error('BLNT lockup backfill claim has an invalid response');
+  }
+
+  return {
+    totalAllocation: allocation,
+    vestedAllocation: vested,
+    claimable: payable,
+    claimed,
+    unclaimed,
   };
 }
 
