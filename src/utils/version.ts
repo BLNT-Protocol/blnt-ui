@@ -2,7 +2,7 @@ import type { Version as SdkVersion } from '@blend-capital/blend-sdk';
 
 /**
  * Blend deployments supported by the UI. V2.1 runs the same contracts as V2 with its own
- * backstop and BLND-USDC LP pool, while V3 uses the candidate contracts and BLNT.
+ * backstop and BLND-USDC LP pool, while V3 uses the immutable BLNT V3 contracts and BLNT.
  */
 export enum Version {
   V1 = 'V1',

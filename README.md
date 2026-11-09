@@ -1,12 +1,14 @@
-# Blend UI
+# BLNT Trade UI
 
-An open source UI for interacting with the Blend Protocol.
+An open-source interface for BLNT V3 and supported Blend markets. BLNT V3 is
+an immutable lending protocol derived from Blend and designed to support
+real-world assets.
 
 ## Getting Started
 
 The Blend UI has network specific configurations and build commands, which all export the UI to `out/`.
 
-This candidate consumes the adjacent `blnt-sdk-js` checkout. Build that SDK
+This interface consumes the adjacent `blnt-sdk-js` checkout. Build that SDK
 before installing or running the UI:
 
 ```bash

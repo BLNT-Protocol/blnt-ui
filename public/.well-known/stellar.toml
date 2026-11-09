@@ -10,5 +10,5 @@ code = "BLNT"
 issuer = "GAP2ACGH3O6TRFAERGM4USJ6XWU3U2BFIK224JPV6NI3CUNEEEGTBTFB"
 display_decimals = 7
 name = "BLNT Protocol"
-desc = "Utility token for BLNT V3, a Blend V3 candidate."
+desc = "Utility token for BLNT V3, an immutable lending protocol derived from Blend and designed to support real-world assets."
 image = "https://blnt.trade/icons/tokens/blnt.png"
