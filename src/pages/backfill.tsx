@@ -5,6 +5,7 @@ import { BackfillLockupEmissions } from '../components/backstop/BackfillLockupEm
 import { BackstopTokens } from '../components/backstop/BackstopTokens';
 import { ContributorGrants } from '../components/backstop/ContributorGrants';
 import { ContributorClaimAndFund } from '../components/backstop/ContributorClaimAndFund';
+import { YieldBlentBackstopManager } from '../components/backstop/YieldBlentBackstopManager';
 import { Divider } from '../components/common/Divider';
 import { Row } from '../components/common/Row';
 
@@ -25,6 +26,7 @@ const BackfillPage: NextPage = () => {
       </Box>
       <ContributorGrants />
       <ContributorClaimAndFund />
+      <YieldBlentBackstopManager />
     </>
   );
 };

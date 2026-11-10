@@ -73,6 +73,11 @@ import {
   loadLockupBackfillClaimState,
   loadLockupBackfillOwner,
 } from '../utils/blnt_backfill';
+import {
+  BLNT_BACKSTOP_MANAGER_HELPER_ID,
+  BlntBackstopManagerHelperConfig,
+  loadBlntBackstopManagerHelperConfig,
+} from '../utils/blnt_backstop_manager_helper';
 import { getOraclePrices } from '../utils/stellar_rpc';
 import { ReserveTokenMetadata } from '../utils/token';
 import {
@@ -112,6 +117,7 @@ export function useQueryClientCacheCleaner(): {
         query.queryKey[0] === 'backfillEmissions' ||
         query.queryKey[0] === 'contributorGrant' ||
         query.queryKey[0] === 'lockupBackfillClaim' ||
+        query.queryKey[0] === 'backstopManagerHelperState' ||
         query.queryKey[0] === 'backfillSwap' ||
         query.queryKey[0] === 'sim',
     });
@@ -238,6 +244,90 @@ export function useLockupBackfillClaim(
     enabled: enabled && connected && walletAddress !== '' && BLNT_LOCKUP_BACKFILL_ID !== '',
     queryFn: () =>
       loadLockupBackfillClaimState(network, BLNT_LOCKUP_BACKFILL_ID, walletAddress),
+  });
+}
+
+export interface BlntBackstopManagerHelperState {
+  blntBalance: bigint;
+  firstLpTokens: bigint;
+  firstValue: bigint;
+  secondLpTokens: bigint;
+  secondValue: bigint;
+}
+
+/** Fetch the immutable helper bindings used to gate its owner-only UI. */
+export function useBlntBackstopManagerHelperConfig(
+  enabled: boolean = true
+): UseQueryResult<BlntBackstopManagerHelperConfig, Error> {
+  const { network } = useSettings();
+  const { connected } = useWallet();
+
+  return useQuery({
+    staleTime: Infinity,
+    queryKey: ['backstopManagerHelperConfig', BLNT_BACKSTOP_MANAGER_HELPER_ID],
+    enabled: enabled && connected && BLNT_BACKSTOP_MANAGER_HELPER_ID !== '',
+    queryFn: () => loadBlntBackstopManagerHelperConfig(network, BLNT_BACKSTOP_MANAGER_HELPER_ID),
+  });
+}
+
+/** Fetch the manager's loose BLNT and its two YieldBlent backstop positions. */
+export function useBlntBackstopManagerHelperState(
+  config: BlntBackstopManagerHelperConfig | undefined,
+  enabled: boolean = true
+): UseQueryResult<BlntBackstopManagerHelperState, Error> {
+  const { network } = useSettings();
+
+  return useQuery({
+    staleTime: DEFAULT_STALE_TIME,
+    refetchInterval: DEFAULT_STALE_TIME,
+    queryKey: [
+      'backstopManagerHelperState',
+      BLNT_BACKSTOP_MANAGER_HELPER_ID,
+      config?.manager,
+      config?.pool,
+    ],
+    enabled: enabled && config !== undefined,
+    queryFn: async () => {
+      if (config === undefined) {
+        throw new Error('BLNT backstop manager helper is not configured');
+      }
+      const stellarRpc = new rpc.Server(network.rpc, network.opts);
+      const [blntBalance, pool, user] = await Promise.all([
+        getTokenBalance(
+          stellarRpc,
+          network.passphrase,
+          config.blnt,
+          Address.fromString(config.manager)
+        ),
+        BackstopPoolV3.load(network, config.backstop, config.pool),
+        BackstopPoolUserV3.load(network, config.backstop, config.pool, config.manager),
+      ]);
+
+      const position = (tier: BackstopTierV3) => {
+        const tierPool = pool.tier(tier);
+        const balance = user.balance(tier);
+        const queuedShares = balance.q4w.reduce(
+          (total, queued) => total + queued.amount,
+          BigInt(0)
+        );
+        const tokens = tierPool.sharesToTokens(balance.shares + queuedShares);
+        const value =
+          tierPool.data.tokens > BigInt(0)
+            ? (tokens * tierPool.data.value) / tierPool.data.tokens
+            : BigInt(0);
+        return { tokens, value };
+      };
+      const first = position(BackstopTierV3.FirstLoss);
+      const second = position(BackstopTierV3.SecondLoss);
+
+      return {
+        blntBalance,
+        firstLpTokens: first.tokens,
+        firstValue: first.value,
+        secondLpTokens: second.tokens,
+        secondValue: second.value,
+      };
+    },
   });
 }
 

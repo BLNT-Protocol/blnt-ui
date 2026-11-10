@@ -32,6 +32,10 @@ import {
   buildClaimLockupBackfillOperation,
   buildSwapBlndForBlntOperation,
 } from '../utils/blnt_backfill';
+import {
+  BLNT_BACKSTOP_MANAGER_HELPER_ID,
+  buildBackstopManagerDepositAndClaimOperation,
+} from '../utils/blnt_backstop_manager_helper';
 import { CometClient, CometLiquidityArgs, CometSingleSidedDepositArgs } from '../utils/comet';
 import { BACKSTOP_IDS, isV2Contracts, Version } from '../utils/version';
 import { useSettings } from './settings';
@@ -156,6 +160,9 @@ export interface IWalletContext {
     sim: boolean
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
   contributorClaimAndFund(sim: boolean): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
+  backstopManagerDepositAndClaim(
+    sim: boolean
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
   backfillSwapBlndForBlnt(
     user: string,
     blntAmount: bigint,
@@ -900,6 +907,23 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     }
   }
 
+  /** Deposit the manager's available BLNT across both tiers and claim both tiers' emissions. */
+  async function backstopManagerDepositAndClaim(
+    sim: boolean
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
+    if (connected && BLNT_BACKSTOP_MANAGER_HELPER_ID !== '') {
+      const operation = buildBackstopManagerDepositAndClaimOperation(
+        BLNT_BACKSTOP_MANAGER_HELPER_ID
+      );
+      if (sim) {
+        return await simulateOperation(operation);
+      }
+      await invokeSorobanOperation(operation);
+      cleanBackstopCache();
+      cleanWalletCache();
+    }
+  }
+
   /** Burn one legacy BLND for each pre-funded BLNT sent to the connected wallet. */
   async function backfillSwapBlndForBlnt(
     user: string,
@@ -1061,6 +1085,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         contributorGrantClaim,
         lockupBackfillClaim,
         contributorClaimAndFund,
+        backstopManagerDepositAndClaim,
         backfillSwapBlndForBlnt,
         cometSingleSidedDeposit,
         cometJoin,
