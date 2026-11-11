@@ -163,6 +163,10 @@ export interface IWalletContext {
   backstopManagerDepositAndClaim(
     sim: boolean
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
+  backstopManagerInvoke(
+    operation: xdr.Operation,
+    sim: boolean
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
   backfillSwapBlndForBlnt(
     user: string,
     blntAmount: bigint,
@@ -924,6 +928,24 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     }
   }
 
+  /**
+   * Simulate or submit one backstop manager contract call (or a token transfer
+   * into the manager contract), signed by the connected wallet.
+   */
+  async function backstopManagerInvoke(
+    operation: xdr.Operation,
+    sim: boolean
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
+    if (connected) {
+      if (sim) {
+        return await simulateOperation(operation);
+      }
+      await invokeSorobanOperation(operation);
+      cleanBackstopCache();
+      cleanWalletCache();
+    }
+  }
+
   /** Burn one legacy BLND for each pre-funded BLNT sent to the connected wallet. */
   async function backfillSwapBlndForBlnt(
     user: string,
@@ -1086,6 +1108,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         lockupBackfillClaim,
         contributorClaimAndFund,
         backstopManagerDepositAndClaim,
+        backstopManagerInvoke,
         backfillSwapBlndForBlnt,
         cometSingleSidedDeposit,
         cometJoin,

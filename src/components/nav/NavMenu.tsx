@@ -66,6 +66,11 @@ export const NavMenu = () => {
               Auctions
             </MenuItem>
           </Link>
+          <Link href="/manager">
+            <MenuItem onClick={handleClose} sx={{ color: '#FFFFFF' }}>
+              Backstop Manager
+            </MenuItem>
+          </Link>
           <Link href="/settings">
             <MenuItem onClick={handleClose} sx={{ color: '#FFFFFF' }}>
               Settings
@@ -133,6 +138,12 @@ export const NavMenu = () => {
             onClick={handleClose}
             to={{ pathname: '/backstop', query: { poolId: poolId } }}
             title="Backstop"
+            sx={{ width: '90%', justifyContent: 'left', marginBottom: '6px' }}
+          />
+          <NavItem
+            onClick={handleClose}
+            to={{ pathname: '/manager' }}
+            title="Backstop Manager"
             sx={{ width: '90%', justifyContent: 'left', marginBottom: '6px' }}
           />
           <NavItem
