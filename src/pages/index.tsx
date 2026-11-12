@@ -1,27 +1,18 @@
 import { useTheme } from '@mui/material';
 import type { NextPage } from 'next';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Divider } from '../components/common/Divider';
 import { Row } from '../components/common/Row';
 import { SectionBase } from '../components/common/SectionBase';
 import { ToggleSlider } from '../components/common/ToggleSlider';
 import { MarketsList } from '../components/markets/MarketsList';
-import { useSettings } from '../contexts';
 import { ENABLED_VERSIONS, LATEST_VERSION, Version } from '../utils/version';
+
+const DEFAULT_VERSION = ENABLED_VERSIONS.includes(Version.V3) ? Version.V3 : LATEST_VERSION;
 
 const Markets: NextPage = () => {
   const theme = useTheme();
-  const { lastPool } = useSettings();
-
-  const [version, setVersion] = useState<Version | undefined>(undefined);
-
-  useEffect(() => {
-    if (lastPool?.version && ENABLED_VERSIONS.includes(lastPool.version)) {
-      setVersion(lastPool.version);
-    } else {
-      setVersion(LATEST_VERSION);
-    }
-  }, [lastPool]);
+  const [version, setVersion] = useState<Version>(DEFAULT_VERSION);
 
   return (
     <>
@@ -29,7 +20,7 @@ const Markets: NextPage = () => {
         <SectionBase type="alt" sx={{ margin: '6px', padding: '6px' }}>
           Markets
         </SectionBase>
-        {ENABLED_VERSIONS.length > 1 && version !== undefined && (
+        {ENABLED_VERSIONS.length > 1 && (
           <ToggleSlider
             options={ENABLED_VERSIONS.map((option) => ({
               optionName: option,
