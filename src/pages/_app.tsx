@@ -23,7 +23,7 @@ export default function MyApp(props: AppProps) {
   return (
     <>
       <Head>
-        <title>BLNT Trade</title>
+        <title>BLNT Trade | Lending Markets on Stellar</title>
         <meta
           name="description"
           content="BLNT Trade is a web interface for BLNT V3 and supported Blend markets on Stellar."
