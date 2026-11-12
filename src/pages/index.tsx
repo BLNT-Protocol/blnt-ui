@@ -1,4 +1,4 @@
-import { useTheme } from '@mui/material';
+import { Typography, useTheme } from '@mui/material';
 import type { NextPage } from 'next';
 import { useState } from 'react';
 import { Divider } from '../components/common/Divider';
@@ -41,6 +41,13 @@ const Markets: NextPage = () => {
           />
         )}
       </Row>
+      <SectionBase type="alt" sx={{ margin: '6px', padding: '12px' }}>
+        <Typography component="p" variant="body2">
+          BLNT Trade is the interface for BLNT V3, a Blend-derived lending protocol on Stellar
+          designed for permissionless lending and real-world assets. Explore the Fixed Pool V3
+          and YieldBlent markets. V1/V2/V2.1 are Blend markets.
+        </Typography>
+      </SectionBase>
       <Divider />
       <MarketsList version={version} />
     </>

@@ -19,11 +19,31 @@ cd ../blnt-ui
 npm install
 ```
 
-To run the testnet UI as a development server, run:
+### Local development
+
+Run this mainnet checkout at `http://localhost:3000` by default. If another port
+is explicitly requested, substitute it for 3000 in the commands below. Before
+starting the UI, check whether a process is listening on the selected port:
 
 ```bash
-npm run dev:testnet
+lsof -nP -iTCP:3000 -sTCP:LISTEN
 ```
+
+If the command reports a listener, terminate that exact PID gracefully and wait
+for the selected port to become available:
+
+```bash
+kill -TERM <PID>
+```
+
+Then start the UI on the selected local port:
+
+```bash
+npm run dev -- -p 3000
+```
+
+Do not allow Next.js to select another port automatically when the selected
+port is occupied. Use a non-default port only when explicitly requested.
 
 #### Testnet
 
