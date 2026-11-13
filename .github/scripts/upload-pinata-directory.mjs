@@ -22,11 +22,11 @@ async function listFiles(root, directory = root) {
   });
 }
 
-const [directoryArgument, pinName, expectedCid] = process.argv.slice(2);
+const [directoryArgument, pinName] = process.argv.slice(2);
 const token = process.env.PINATA_JWT_TOKEN;
 
-if (!directoryArgument || !pinName || !expectedCid || !token) {
-  throw new Error('Usage: upload-pinata-directory.mjs <directory> <pin-name> <expected-cid>');
+if (!directoryArgument || !pinName || !token) {
+  throw new Error('Usage: upload-pinata-directory.mjs <directory> <pin-name>');
 }
 
 const root = resolve(directoryArgument);
@@ -58,9 +58,6 @@ if (!response.ok) {
 const result = await response.json();
 if (typeof result.IpfsHash !== 'string' || result.IpfsHash.length === 0) {
   throw new Error('Pinata directory upload did not return an IPFS CID');
-}
-if (result.IpfsHash !== expectedCid) {
-  throw new Error(`Pinata returned CID ${result.IpfsHash}; expected ${expectedCid}`);
 }
 
 process.stdout.write(`${result.IpfsHash}\n`);

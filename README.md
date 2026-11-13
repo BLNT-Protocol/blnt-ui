@@ -72,10 +72,12 @@ npm run build:testnet
 ## IPFS Deployment
 
 Version tags matching `v*` build the mainnet static export, convert it to a
-deterministic IPFS CAR, pin the same directory through Pinata, verify both
-processes produced the same CID, and publish a GitHub release containing the
-CID, source commit, archive, CAR, and checksums. The tagged commit must be
-reachable from `main`, and the SDK commit is pinned in the release workflow.
+local IPFS DAG, and pin the directory through Pinata. The workflow retrieves
+the pinned DAG through IPFS, byte-compares every exported file with the build,
+and exports that exact verified DAG as the release CAR. The GitHub release
+contains the CID, source commit, archive, CAR, and checksums. The tagged commit
+must be reachable from `main`, and the SDK commit is pinned in the release
+workflow.
 
 Configure the repository secret `PINATA_JWT_TOKEN` with a restricted Pinata
 JWT before publishing a tag. Releases are available from the

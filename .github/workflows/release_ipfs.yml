@@ -113,7 +113,7 @@ jobs:
             --file release-artifacts/blnt-trade-${RELEASE_TAG}.tar.gz \
             .
 
-      - name: Create deterministic IPFS CAR
+      - name: Initialize Kubo and compute the local build CID
         id: ipfs
         uses: ipfs/ipfs-deploy-action@bb46d65c97660ef08ecaf93e9c187afcee668185 # v3
         with:
@@ -124,11 +124,11 @@ jobs:
           cid-profile: ''
           ipfs-add-options: '--cid-version=1'
           car-file-name: blnt-trade-${{ env.RELEASE_TAG }}.car
+          upload-car-artifact: 'false'
 
-      - name: Upload and pin CAR with Pinata
+      - name: Upload and pin directory with Pinata
+        id: pinata
         env:
-          CAR_PATH: ${{ steps.ipfs.outputs.car-path }}
-          CID: ${{ steps.ipfs.outputs.cid }}
           PINATA_JWT_TOKEN: ${{ secrets.PINATA_JWT_TOKEN }}
           SOURCE_COMMIT: ${{ steps.source.outputs.commit }}
         run: |
@@ -140,17 +140,62 @@ jobs:
           fi
           returned_cid="$(node "$upload_script" \
             blnt-ui/out \
-            "$pin_name" \
-            "$CID")"
+            "$pin_name")"
+          printf 'cid=%s\n' "$returned_cid" >> "$GITHUB_OUTPUT"
           echo "Pinned ${returned_cid} as ${pin_name}."
+
+      - name: Verify pinned content and export its CAR
+        id: verify
+        env:
+          PINNED_CID: ${{ steps.pinata.outputs.cid }}
+        run: |
+          daemon_log="$RUNNER_TEMP/ipfs-daemon.log"
+          ipfs daemon > "$daemon_log" 2>&1 &
+          daemon_pid=$!
+          trap 'kill "$daemon_pid" 2>/dev/null || true' EXIT
+
+          for attempt in $(seq 1 12); do
+            if ipfs id > /dev/null 2>&1; then
+              break
+            fi
+            if [ "$attempt" -eq 12 ]; then
+              cat "$daemon_log"
+              echo '::error::Local IPFS daemon did not become ready.'
+              exit 1
+            fi
+            sleep 1
+          done
+
+          for attempt in $(seq 1 6); do
+            if timeout 120 ipfs pin add "$PINNED_CID"; then
+              break
+            fi
+            if [ "$attempt" -eq 6 ]; then
+              echo "::error::Unable to retrieve pinned CID ${PINNED_CID}."
+              exit 1
+            fi
+            sleep 5
+          done
+
+          comparison_file="$(mktemp)"
+          while IFS= read -r -d '' local_file; do
+            relative_path="${local_file#blnt-ui/out/}"
+            ipfs cat "/ipfs/${PINNED_CID}/${relative_path}" > "$comparison_file"
+            cmp "$local_file" "$comparison_file"
+          done < <(find blnt-ui/out -type f -print0 | sort -z)
+
+          verified_car="release-artifacts/blnt-trade-${RELEASE_TAG}.car"
+          ipfs dag export "$PINNED_CID" > "$verified_car"
+          printf 'car_path=%s\n' "$verified_car" >> "$GITHUB_OUTPUT"
+          echo "Verified every exported file under ${PINNED_CID}."
 
       - name: Assemble verifiable release evidence
         env:
-          CAR_PATH: ${{ steps.ipfs.outputs.car-path }}
-          CID: ${{ steps.ipfs.outputs.cid }}
+          CAR_PATH: ${{ steps.verify.outputs.car_path }}
+          CID: ${{ steps.pinata.outputs.cid }}
           SOURCE_COMMIT: ${{ steps.source.outputs.commit }}
         run: |
-          cp "$CAR_PATH" "release-artifacts/blnt-trade-${RELEASE_TAG}.car"
+          test -s "$CAR_PATH"
           printf '%s\n' "$CID" > release-artifacts/ipfs-cid.txt
           printf '%s\n' "$SOURCE_COMMIT" > release-artifacts/source-commit.txt
           sha256sum \
@@ -173,8 +218,8 @@ jobs:
 
             - Source commit: `${{ steps.source.outputs.commit }}`
             - Pinned BLNT SDK commit: `${{ env.SDK_COMMIT }}`
-            - IPFS CID: `${{ steps.ipfs.outputs.cid }}`
-            - IPFS URI: `ipfs://${{ steps.ipfs.outputs.cid }}/`
+            - IPFS CID: `${{ steps.pinata.outputs.cid }}`
+            - IPFS URI: `ipfs://${{ steps.pinata.outputs.cid }}/`
 
             Verify the attached checksums before using the archive or CAR file.
           draft: false
