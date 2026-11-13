@@ -144,11 +144,35 @@ jobs:
           printf 'cid=%s\n' "$returned_cid" >> "$GITHUB_OUTPUT"
           echo "Pinned ${returned_cid} as ${pin_name}."
 
-      - name: Verify pinned content and export its CAR
+      - name: Retrieve and verify pinned CAR
         id: verify
         env:
           PINNED_CID: ${{ steps.pinata.outputs.cid }}
         run: |
+          verified_car="release-artifacts/blnt-trade-${RELEASE_TAG}.car"
+          retrieved=false
+          for gateway in \
+            'https://ipfs.filebase.io/ipfs' \
+            'https://dweb.link/ipfs' \
+            'https://ipfs.io/ipfs'; do
+            if curl \
+              --fail \
+              --location \
+              --retry 3 \
+              --retry-all-errors \
+              --connect-timeout 10 \
+              --max-time 180 \
+              --output "$verified_car" \
+              "${gateway}/${PINNED_CID}?format=car"; then
+              retrieved=true
+              break
+            fi
+          done
+          if [ "$retrieved" != true ] || [ ! -s "$verified_car" ]; then
+            echo "::error::Unable to retrieve the pinned CAR for ${PINNED_CID}."
+            exit 1
+          fi
+
           daemon_log="$RUNNER_TEMP/ipfs-daemon.log"
           ipfs daemon > "$daemon_log" 2>&1 &
           daemon_pid=$!
@@ -166,16 +190,7 @@ jobs:
             sleep 1
           done
 
-          for attempt in $(seq 1 6); do
-            if timeout 120 ipfs pin add "$PINNED_CID"; then
-              break
-            fi
-            if [ "$attempt" -eq 6 ]; then
-              echo "::error::Unable to retrieve pinned CID ${PINNED_CID}."
-              exit 1
-            fi
-            sleep 5
-          done
+          ipfs dag import "$verified_car"
 
           comparison_file="$(mktemp)"
           while IFS= read -r -d '' local_file; do
@@ -184,8 +199,6 @@ jobs:
             cmp "$local_file" "$comparison_file"
           done < <(find blnt-ui/out -type f -print0 | sort -z)
 
-          verified_car="release-artifacts/blnt-trade-${RELEASE_TAG}.car"
-          ipfs dag export "$PINNED_CID" > "$verified_car"
           printf 'car_path=%s\n' "$verified_car" >> "$GITHUB_OUTPUT"
           echo "Verified every exported file under ${PINNED_CID}."
 
