@@ -1,4 +1,4 @@
-import { Horizon } from '@stellar/stellar-sdk';
+import { Asset, Horizon } from '@stellar/stellar-sdk';
 import { useQuery, UseQueryResult } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useLocalStorageState } from '.';
@@ -86,13 +86,15 @@ export function useWalletTokenBalances(
   });
 }
 
-/** XLM that must remain for the account's live reserve, liabilities, and transaction fees. */
-export function useWalletNativeReserve(enabled: boolean = true): UseQueryResult<bigint, Error> {
+/** Amount unavailable to transfer for each classic asset because of reserves or liabilities. */
+export function useWalletFundingReserves(
+  enabled: boolean = true
+): UseQueryResult<Record<string, bigint>, Error> {
   const { network } = useSettings();
   const { walletAddress, connected } = useWallet();
   return useQuery({
     staleTime: STALE_TIME,
-    queryKey: ['account', 'backstopManagerNativeReserve', walletAddress],
+    queryKey: ['account', 'backstopManagerFundingReserves', walletAddress],
     enabled: enabled && connected && walletAddress !== '',
     queryFn: async () => {
       const horizon = new Horizon.Server(network.horizonUrl, network.opts);
@@ -107,12 +109,24 @@ export function useWalletNativeReserve(enabled: boolean = true): UseQueryResult<
         2 + account.subentry_count + account.num_sponsoring - account.num_sponsored
       );
       const minimumBalance = BigInt(latestLedger.base_reserve_in_stroops) * BigInt(reserveEntries);
-      const nativeBalance = account.balances.find((balance) => balance.asset_type === 'native');
-      const sellingLiabilities =
-        nativeBalance !== undefined && 'selling_liabilities' in nativeBalance
-          ? amountToStroops(nativeBalance.selling_liabilities)
-          : BigInt(0);
-      return minimumBalance + sellingLiabilities + XLM_FEE_BUFFER;
+      const unavailable: Record<string, bigint> = {};
+      for (const balance of account.balances) {
+        let asset: Asset;
+        if (balance.asset_type === 'native') {
+          asset = Asset.native();
+        } else if (
+          balance.asset_type === 'credit_alphanum4' ||
+          balance.asset_type === 'credit_alphanum12'
+        ) {
+          asset = new Asset(balance.asset_code, balance.asset_issuer);
+        } else {
+          continue;
+        }
+        const sellingLiabilities = amountToStroops(balance.selling_liabilities);
+        unavailable[asset.contractId(network.passphrase)] =
+          sellingLiabilities + (asset.isNative() ? minimumBalance + XLM_FEE_BUFFER : BigInt(0));
+      }
+      return unavailable;
     },
   });
 }

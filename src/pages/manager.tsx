@@ -1,6 +1,6 @@
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { Box, Input, MenuItem, Select, Tooltip, Typography, useTheme } from '@mui/material';
-import { Asset, rpc, scValToNative, xdr } from '@stellar/stellar-sdk';
+import { rpc, scValToNative, xdr } from '@stellar/stellar-sdk';
 import type { NextPage } from 'next';
 import { useRouter } from 'next/router';
 import { ReactNode, useEffect, useState } from 'react';
@@ -15,7 +15,7 @@ import { useSimulateOperation } from '../hooks/api';
 import {
   useBackstopManager,
   useSavedBackstopManagers,
-  useWalletNativeReserve,
+  useWalletFundingReserves,
   useWalletTokenBalances,
 } from '../hooks/backstopManager';
 import {
@@ -191,7 +191,7 @@ const PositionCard: React.FC<{ state: BackstopManagerState; position: ManagerPos
   position: p,
 }) => {
   const theme = useTheme();
-  const { viewType, network } = useSettings();
+  const { viewType } = useSettings();
   const { walletAddress, connected, backstopManagerInvoke, restore } = useWallet();
   const can = (action: ManagerAction) => connected && canPerform(state, walletAddress, action);
   const lp = p.lpToken;
@@ -203,27 +203,37 @@ const PositionCard: React.FC<{ state: BackstopManagerState; position: ManagerPos
   const [depositAmount, setDepositAmount] = useState('');
   const [queueAmount, setQueueAmount] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [actionRestore, setActionRestore] = useState<rpc.Api.SimulateTransactionRestoreResponse>();
+  const [restoringAction, setRestoringAction] = useState(false);
 
   const send = async (op: xdr.Operation, clear?: () => void) => {
-    await backstopManagerInvoke(op, false, p.pool);
+    const response = await backstopManagerInvoke(op, false, p.pool);
+    if (response !== undefined && rpc.Api.isSimulationRestore(response)) {
+      setActionRestore(response);
+      return;
+    }
+    setActionRestore(undefined);
     clear?.();
   };
 
   // Fund: the LP token or one of its underlying tokens, from the wallet
   const fundTokens = [lp, ...p.underlying];
-  const { data: walletBalances } = useWalletTokenBalances(
+  const {
+    data: walletBalances,
+    error: walletBalanceError,
+    refetch: refetchWalletBalances,
+  } = useWalletTokenBalances(
     fundTokens.map((t) => t.id),
     connected
   );
-  const nativeTokenId = Asset.native().contractId(network.passphrase);
+  const fundNeedsRestore = walletBalanceError instanceof BackstopManagerRestoreRequiredError;
+  const { data: fundingReserves } = useWalletFundingReserves(connected);
   const fundHeld = walletBalances?.[fundToken] ?? BigInt(0);
-  const fundIsXlm = fundTokens[fundToken].id === nativeTokenId;
-  const { data: nativeReserve } = useWalletNativeReserve(connected && fundIsXlm);
-  const fundMax = fundIsXlm
-    ? nativeReserve !== undefined && fundHeld > nativeReserve
-      ? fundHeld - nativeReserve
-      : BigInt(0)
-    : fundHeld;
+  const fundUnavailable = fundingReserves?.[fundTokens[fundToken].id] ?? BigInt(0);
+  const fundMax =
+    fundingReserves !== undefined && fundHeld > fundUnavailable
+      ? fundHeld - fundUnavailable
+      : BigInt(0);
   const fundDefault = fundMax;
   const fund = parseAmount(fundAmount, fundDefault);
 
@@ -347,18 +357,63 @@ const PositionCard: React.FC<{ state: BackstopManagerState; position: ManagerPos
 
       <Divider />
 
+      {actionRestore !== undefined && (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            padding: '12px',
+            borderRadius: '5px',
+            background: theme.palette.background.default,
+          }}
+        >
+          <Typography variant="body2">
+            This action needs archived entries restored before it can be submitted. Restore them,
+            then retry the action.
+          </Typography>
+          <OpaqueButton
+            palette={theme.palette.warning}
+            disabled={restoringAction}
+            onClick={async () => {
+              setRestoringAction(true);
+              try {
+                await restore(actionRestore);
+                setActionRestore(undefined);
+              } finally {
+                setRestoringAction(false);
+              }
+            }}
+            sx={{ minWidth: '140px', padding: '8px' }}
+          >
+            {restoringAction ? 'Restoring…' : 'Restore'}
+          </OpaqueButton>
+        </Box>
+      )}
+
       <ActionRow
         action="fund"
         title="Fund"
-        description="Send LP tokens, or the tokens the LP is made of, from your wallet to the contract. Then deposit (LP) or join (underlying)."
-        allowed={connected}
-        disabled={fund === undefined || fund <= BigInt(0) || fund > fundMax}
-        button="Send"
-        onSubmit={() =>
-          send(managerOps.fund(state.id, fundTokens[fundToken].id, walletAddress, fund!), () =>
-            setFundAmount('')
-          )
+        description={
+          fundNeedsRestore
+            ? 'An archived wallet balance must be restored before funding can proceed.'
+            : 'Send LP tokens, or the tokens the LP is made of, from your wallet to the contract. Then deposit (LP) or join (underlying).'
         }
+        allowed={connected}
+        disabled={!fundNeedsRestore && (fund === undefined || fund <= BigInt(0) || fund > fundMax)}
+        button={fundNeedsRestore ? 'Restore' : 'Send'}
+        onSubmit={async () => {
+          if (fundNeedsRestore) {
+            await restore(walletBalanceError.simulation);
+            await refetchWalletBalances();
+          } else {
+            await send(
+              managerOps.fund(state.id, fundTokens[fundToken].id, walletAddress, fund!),
+              () => setFundAmount('')
+            );
+          }
+        }}
       >
         <Select
           size="small"
@@ -713,7 +768,11 @@ const ManagerPage: NextPage = () => {
             </Row>
           )}
           {state.positions.map((p) => (
-            <PositionCard key={`${p.backstop}-${p.pool}-${p.tier}`} state={state} position={p} />
+            <PositionCard
+              key={`${state.id}-${p.backstop}-${p.pool}-${p.tier}`}
+              state={state}
+              position={p}
+            />
           ))}
         </>
       )}
