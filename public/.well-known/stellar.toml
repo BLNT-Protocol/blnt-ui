@@ -1,14 +1,24 @@
+VERSION = "2.7.0"
 NETWORK_PASSPHRASE = "Public Global Stellar Network ; September 2015"
 
 [DOCUMENTATION]
-ORG_NAME = "BLNT Protocol Contributors"
+ORG_NAME = "BLNT Protocol LLC"
+ORG_DBA = "BLNT Trade"
 ORG_URL = "https://blnt.trade"
+ORG_LOGO = "https://blnt.trade/icons/tokens/blnt.png"
+ORG_DESCRIPTION = "BLNT Trade supports BLNT V3, an immutable Blend-derived lending protocol on Stellar designed for permissionless markets and real-world assets."
 ORG_GITHUB = "BLNT-Protocol"
+ORG_OFFICIAL_EMAIL = "contact@blnt.trade"
+ORG_SUPPORT_EMAIL = "contact@blnt.trade"
 
 [[CURRENCIES]]
 code = "BLNT"
 issuer = "GAP2ACGH3O6TRFAERGM4USJ6XWU3U2BFIK224JPV6NI3CUNEEEGTBTFB"
+status = "live"
 display_decimals = 7
 name = "BLNT Protocol"
 desc = "Utility token for BLNT V3, an immutable lending protocol derived from Blend and designed to support real-world assets."
+conditions = "Supply issuance follows immutable on-chain emission rules; the classic issuer account is permanently locked."
 image = "https://blnt.trade/icons/tokens/blnt.png"
+is_unlimited = true
+is_asset_anchored = false
