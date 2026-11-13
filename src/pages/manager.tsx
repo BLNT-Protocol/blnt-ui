@@ -192,7 +192,7 @@ const PositionCard: React.FC<{ state: BackstopManagerState; position: ManagerPos
 }) => {
   const theme = useTheme();
   const { viewType, network } = useSettings();
-  const { walletAddress, connected, backstopManagerInvoke } = useWallet();
+  const { walletAddress, connected, backstopManagerInvoke, restore } = useWallet();
   const can = (action: ManagerAction) => connected && canPerform(state, walletAddress, action);
   const lp = p.lpToken;
   const now = Math.floor(Date.now() / 1000);
@@ -242,10 +242,12 @@ const PositionCard: React.FC<{ state: BackstopManagerState; position: ManagerPos
   const claimSimOp = can('claim')
     ? managerOps.claim(state.id, walletAddress, p, BigInt(0)).toXDR('base64')
     : '';
-  const { data: claimSim, isLoading: claimLoading } = useSimulateOperation(
-    claimSimOp,
-    claimSimOp !== ''
-  );
+  const {
+    data: claimSim,
+    isLoading: claimLoading,
+    refetch: refetchClaimSim,
+  } = useSimulateOperation(claimSimOp, claimSimOp !== '');
+  const claimNeedsRestore = claimSim !== undefined && rpc.Api.isSimulationRestore(claimSim);
   const claimEstimate =
     claimSim !== undefined &&
     rpc.Api.isSimulationSuccess(claimSim) &&
@@ -443,24 +445,31 @@ const PositionCard: React.FC<{ state: BackstopManagerState; position: ManagerPos
               ? `Claiming now mints about ${fmt(claimEstimate)} LP (minimum accepted ${fmt(
                   lessSlippage(claimEstimate, SLIPPAGE_BPS)
                 )}).`
+              : claimNeedsRestore
+              ? 'Archived entries must be restored before the claim can proceed.'
               : can('claim') && !claimLoading
               ? 'Could not simulate the claim.'
               : ''}
           </>
         }
         allowed={can('claim')}
-        disabled={claimEstimate === undefined || claimEstimate <= BigInt(0)}
-        button="Claim"
-        onSubmit={() =>
-          send(
-            managerOps.claim(
-              state.id,
-              walletAddress,
-              p,
-              lessSlippage(claimEstimate ?? BigInt(0), SLIPPAGE_BPS)
-            )
-          )
-        }
+        disabled={!claimNeedsRestore && (claimEstimate === undefined || claimEstimate <= BigInt(0))}
+        button={claimNeedsRestore ? 'Restore' : 'Claim'}
+        onSubmit={async () => {
+          if (claimNeedsRestore) {
+            await restore(claimSim);
+            await refetchClaimSim();
+          } else {
+            await send(
+              managerOps.claim(
+                state.id,
+                walletAddress,
+                p,
+                lessSlippage(claimEstimate ?? BigInt(0), SLIPPAGE_BPS)
+              )
+            );
+          }
+        }}
       />
 
       <ActionRow
