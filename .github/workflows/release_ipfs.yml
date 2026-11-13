@@ -1,53 +1,175 @@
-name: Build and Release to IPFS
+name: Build and Release BLNT Trade to IPFS
 
 on:
   push:
     tags:
-      - 'v*' # triggered whenever a new tag (previxed with "v") is pushed to the repository
+      - 'v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ipfs-release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SDK_COMMIT: 66fae2ef953e2855521048219d4309817e947ba2
 
 jobs:
-  build-and-release:
+  build-pin-release:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout UI
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: blnt-ui
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require the tagged commit to be on main
+        working-directory: blnt-ui
+        run: |
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
+      - name: Checkout pinned SDK
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: BLNT-Protocol/blnt-sdk-js
+          ref: ${{ env.SDK_COMMIT }}
+          path: blnt-sdk-js
+          persist-credentials: false
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: '20.x'
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            blnt-sdk-js/package-lock.json
+            blnt-ui/package-lock.json
 
-      - name: Install dependencies
-        run: npm install
+      - name: Set up npm
+        run: npm install --global npm@11.13.0
 
-      - name: Run build script
-        run: npm run build:mainnet
+      - name: Install and build SDK
+        working-directory: blnt-sdk-js
+        run: |
+          npm ci
+          npm run build
 
-      - name: Create tarball
-        run: tar -czf app.tar.gz ./out/
+      - name: Install and build mainnet UI
+        working-directory: blnt-ui
+        run: |
+          npm ci
+          npm run build:mainnet
 
-      - name: pinata
-        id: pinata
-        uses: aave/pinata-action@a3409e26f4cb859a2d9984109317caac53db5f68
+      - name: Verify required static routes
+        run: |
+          test -f blnt-ui/out/index.html
+          test -f blnt-ui/out/backfill/index.html
+          test -f blnt-ui/out/manager/index.html
+          test -f blnt-ui/out/termsofservice/index.html
+
+      - name: Create release archive
+        run: |
+          mkdir -p release-artifacts
+          tar \
+            --sort=name \
+            --mtime='UTC 1970-01-01' \
+            --owner=0 \
+            --group=0 \
+            --numeric-owner \
+            --directory blnt-ui/out \
+            --create \
+            --gzip \
+            --file release-artifacts/blnt-trade-${GITHUB_REF_NAME}.tar.gz \
+            .
+
+      - name: Create deterministic IPFS CAR
+        id: ipfs
+        uses: ipfs/ipfs-deploy-action@bb46d65c97660ef08ecaf93e9c187afcee668185 # v3
         with:
-          PINATA_API_KEY: ${{ secrets.PINATA_API_KEY }}
-          PINATA_SECRET_KEY: ${{ secrets.PINATA_SECRET_KEY }}
-          PIN_ALIAS: 'app-blend-${{ github.ref_name }}'
-          BUILD_LOCATION: './out'
-          CID_VERSION: 1
+          path-to-deploy: blnt-ui/out
+          github-token: ${{ github.token }}
+          set-github-status: 'false'
+          set-pr-comment: 'false'
+          car-file-name: blnt-trade-${{ github.ref_name }}.car
 
-      - name: Create release
-        uses: softprops/action-gh-release@v2
+      - name: Upload and pin CAR with Pinata
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CAR_PATH: ${{ steps.ipfs.outputs.car-path }}
+          CID: ${{ steps.ipfs.outputs.cid }}
+          PINATA_JWT_TOKEN: ${{ secrets.PINATA_JWT_TOKEN }}
+        run: |
+          test -n "$PINATA_JWT_TOKEN"
+          pin_name="blnt-trade-${GITHUB_REF_NAME}-${GITHUB_SHA:0:7}"
+          response_file="$(mktemp)"
+          http_code="$(curl --silent --show-error \
+            --output "$response_file" \
+            --write-out '%{http_code}' \
+            --request POST \
+            'https://uploads.pinata.cloud/v3/files' \
+            --header "Authorization: Bearer ${PINATA_JWT_TOKEN}" \
+            --form 'network=public' \
+            --form "file=@${CAR_PATH}" \
+            --form "name=${pin_name}" \
+            --form 'car=true')"
+
+          if [ "$http_code" != '200' ]; then
+            echo "::error::Pinata upload failed with HTTP ${http_code}."
+            jq . "$response_file" || true
+            exit 1
+          fi
+
+          returned_cid="$(jq --raw-output '.data.cid' "$response_file")"
+          if [ -z "$returned_cid" ] || [ "$returned_cid" = 'null' ]; then
+            echo '::error::Pinata did not return a CID.'
+            exit 1
+          fi
+          if [ "$returned_cid" != "$CID" ]; then
+            echo "::error::Pinata returned CID ${returned_cid}; expected ${CID}."
+            exit 1
+          fi
+
+          echo "Pinned ${CID} as ${pin_name}."
+
+      - name: Assemble verifiable release evidence
+        env:
+          CAR_PATH: ${{ steps.ipfs.outputs.car-path }}
+          CID: ${{ steps.ipfs.outputs.cid }}
+        run: |
+          cp "$CAR_PATH" "release-artifacts/blnt-trade-${GITHUB_REF_NAME}.car"
+          printf '%s\n' "$CID" > release-artifacts/ipfs-cid.txt
+          printf '%s\n' "$GITHUB_SHA" > release-artifacts/source-commit.txt
+          sha256sum \
+            "release-artifacts/blnt-trade-${GITHUB_REF_NAME}.tar.gz" \
+            "release-artifacts/blnt-trade-${GITHUB_REF_NAME}.car" \
+            release-artifacts/ipfs-cid.txt \
+            release-artifacts/source-commit.txt \
+            > release-artifacts/checksums.txt
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
-          name: ipfs-${{ github.ref_name }}
+          name: BLNT Trade ${{ github.ref_name }}
           body: |
-            ## Blend UI Release
+            ## BLNT Trade release
 
-            This release contains the latest build of the Blend UI.
+            This release contains the mainnet static export served by BLNT Trade.
 
-            IPFS CID: `${{ steps.pinata.outputs.hash }}`
+            - Source commit: `${{ github.sha }}`
+            - Pinned BLNT SDK commit: `${{ env.SDK_COMMIT }}`
+            - IPFS CID: `${{ steps.ipfs.outputs.cid }}`
+            - IPFS URI: `ipfs://${{ steps.ipfs.outputs.cid }}/`
+
+            Verify the attached checksums before using the archive or CAR file.
           draft: false
           prerelease: false
-          files: app.tar.gz
+          files: |
+            release-artifacts/blnt-trade-${{ github.ref_name }}.tar.gz
+            release-artifacts/blnt-trade-${{ github.ref_name }}.car
+            release-artifacts/ipfs-cid.txt
+            release-artifacts/source-commit.txt
+            release-artifacts/checksums.txt
