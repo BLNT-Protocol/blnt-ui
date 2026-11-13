@@ -50,6 +50,15 @@ jobs:
           git merge-base --is-ancestor "$source_commit" origin/main
           printf 'commit=%s\n' "$source_commit" >> "$GITHUB_OUTPUT"
 
+      - name: Checkout current release tooling for a manual recovery
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: main
+          path: release-tooling
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+
       - name: Checkout pinned SDK
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -125,7 +134,11 @@ jobs:
         run: |
           test -n "$PINATA_JWT_TOKEN"
           pin_name="blnt-trade-${RELEASE_TAG}-${SOURCE_COMMIT:0:7}"
-          returned_cid="$(node blnt-ui/.github/scripts/upload-pinata-directory.mjs \
+          upload_script='blnt-ui/.github/scripts/upload-pinata-directory.mjs'
+          if [ "$GITHUB_EVENT_NAME" = 'workflow_dispatch' ]; then
+            upload_script='release-tooling/.github/scripts/upload-pinata-directory.mjs'
+          fi
+          returned_cid="$(node "$upload_script" \
             blnt-ui/out \
             "$pin_name" \
             "$CID")"
