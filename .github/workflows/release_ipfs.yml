@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing version tag to build and release
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -14,6 +20,8 @@ concurrency:
 
 env:
   SDK_COMMIT: 66fae2ef953e2855521048219d4309817e947ba2
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+  SOURCE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref }}
 
 jobs:
   build-pin-release:
@@ -24,14 +32,23 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           path: blnt-ui
+          ref: ${{ env.SOURCE_REF }}
           fetch-depth: 0
           persist-credentials: false
 
       - name: Require the tagged commit to be on main
+        id: source
         working-directory: blnt-ui
         run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Release tag must use the vMAJOR.MINOR.PATCH format."
+            exit 1
+          fi
           git fetch --no-tags origin main
-          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          source_commit="$(git rev-parse "${RELEASE_TAG}^{commit}")"
+          test "$source_commit" = "$(git rev-parse HEAD)"
+          git merge-base --is-ancestor "$source_commit" origin/main
+          printf 'commit=%s\n' "$source_commit" >> "$GITHUB_OUTPUT"
 
       - name: Checkout pinned SDK
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -84,7 +101,7 @@ jobs:
             --directory blnt-ui/out \
             --create \
             --gzip \
-            --file release-artifacts/blnt-trade-${GITHUB_REF_NAME}.tar.gz \
+            --file release-artifacts/blnt-trade-${RELEASE_TAG}.tar.gz \
             .
 
       - name: Create deterministic IPFS CAR
@@ -95,57 +112,37 @@ jobs:
           github-token: ${{ github.token }}
           set-github-status: 'false'
           set-pr-comment: 'false'
-          car-file-name: blnt-trade-${{ github.ref_name }}.car
+          cid-profile: ''
+          ipfs-add-options: '--cid-version=1'
+          car-file-name: blnt-trade-${{ env.RELEASE_TAG }}.car
 
       - name: Upload and pin CAR with Pinata
         env:
           CAR_PATH: ${{ steps.ipfs.outputs.car-path }}
           CID: ${{ steps.ipfs.outputs.cid }}
           PINATA_JWT_TOKEN: ${{ secrets.PINATA_JWT_TOKEN }}
+          SOURCE_COMMIT: ${{ steps.source.outputs.commit }}
         run: |
           test -n "$PINATA_JWT_TOKEN"
-          pin_name="blnt-trade-${GITHUB_REF_NAME}-${GITHUB_SHA:0:7}"
-          response_file="$(mktemp)"
-          http_code="$(curl --silent --show-error \
-            --output "$response_file" \
-            --write-out '%{http_code}' \
-            --request POST \
-            'https://uploads.pinata.cloud/v3/files' \
-            --header "Authorization: Bearer ${PINATA_JWT_TOKEN}" \
-            --form 'network=public' \
-            --form "file=@${CAR_PATH}" \
-            --form "name=${pin_name}" \
-            --form 'car=true')"
-
-          if [ "$http_code" != '200' ]; then
-            echo "::error::Pinata upload failed with HTTP ${http_code}."
-            jq . "$response_file" || true
-            exit 1
-          fi
-
-          returned_cid="$(jq --raw-output '.data.cid' "$response_file")"
-          if [ -z "$returned_cid" ] || [ "$returned_cid" = 'null' ]; then
-            echo '::error::Pinata did not return a CID.'
-            exit 1
-          fi
-          if [ "$returned_cid" != "$CID" ]; then
-            echo "::error::Pinata returned CID ${returned_cid}; expected ${CID}."
-            exit 1
-          fi
-
-          echo "Pinned ${CID} as ${pin_name}."
+          pin_name="blnt-trade-${RELEASE_TAG}-${SOURCE_COMMIT:0:7}"
+          returned_cid="$(node blnt-ui/.github/scripts/upload-pinata-directory.mjs \
+            blnt-ui/out \
+            "$pin_name" \
+            "$CID")"
+          echo "Pinned ${returned_cid} as ${pin_name}."
 
       - name: Assemble verifiable release evidence
         env:
           CAR_PATH: ${{ steps.ipfs.outputs.car-path }}
           CID: ${{ steps.ipfs.outputs.cid }}
+          SOURCE_COMMIT: ${{ steps.source.outputs.commit }}
         run: |
-          cp "$CAR_PATH" "release-artifacts/blnt-trade-${GITHUB_REF_NAME}.car"
+          cp "$CAR_PATH" "release-artifacts/blnt-trade-${RELEASE_TAG}.car"
           printf '%s\n' "$CID" > release-artifacts/ipfs-cid.txt
-          printf '%s\n' "$GITHUB_SHA" > release-artifacts/source-commit.txt
+          printf '%s\n' "$SOURCE_COMMIT" > release-artifacts/source-commit.txt
           sha256sum \
-            "release-artifacts/blnt-trade-${GITHUB_REF_NAME}.tar.gz" \
-            "release-artifacts/blnt-trade-${GITHUB_REF_NAME}.car" \
+            "release-artifacts/blnt-trade-${RELEASE_TAG}.tar.gz" \
+            "release-artifacts/blnt-trade-${RELEASE_TAG}.car" \
             release-artifacts/ipfs-cid.txt \
             release-artifacts/source-commit.txt \
             > release-artifacts/checksums.txt
@@ -153,13 +150,15 @@ jobs:
       - name: Create GitHub release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
-          name: BLNT Trade ${{ github.ref_name }}
+          tag_name: ${{ env.RELEASE_TAG }}
+          target_commitish: ${{ steps.source.outputs.commit }}
+          name: BLNT Trade ${{ env.RELEASE_TAG }}
           body: |
             ## BLNT Trade release
 
             This release contains the mainnet static export served by BLNT Trade.
 
-            - Source commit: `${{ github.sha }}`
+            - Source commit: `${{ steps.source.outputs.commit }}`
             - Pinned BLNT SDK commit: `${{ env.SDK_COMMIT }}`
             - IPFS CID: `${{ steps.ipfs.outputs.cid }}`
             - IPFS URI: `ipfs://${{ steps.ipfs.outputs.cid }}/`
@@ -168,8 +167,8 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            release-artifacts/blnt-trade-${{ github.ref_name }}.tar.gz
-            release-artifacts/blnt-trade-${{ github.ref_name }}.car
+            release-artifacts/blnt-trade-${{ env.RELEASE_TAG }}.tar.gz
+            release-artifacts/blnt-trade-${{ env.RELEASE_TAG }}.car
             release-artifacts/ipfs-cid.txt
             release-artifacts/source-commit.txt
             release-artifacts/checksums.txt
