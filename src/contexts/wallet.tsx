@@ -163,6 +163,11 @@ export interface IWalletContext {
   backstopManagerDepositAndClaim(
     sim: boolean
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
+  backstopManagerInvoke(
+    operation: xdr.Operation,
+    sim: boolean,
+    poolId?: string
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
   backfillSwapBlndForBlnt(
     user: string,
     blntAmount: bigint,
@@ -567,7 +572,10 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     return await simulateTransaction(transaction);
   }
 
-  async function invokeSorobanOperation<T>(operation: xdr.Operation) {
+  async function invokeSorobanOperation<T>(
+    operation: xdr.Operation,
+    surfaceRestore: boolean = false
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
     try {
       const account = await stellarRpc.getAccount(walletAddress);
       const tx_builder = new TransactionBuilder(account, {
@@ -577,6 +585,9 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       }).addOperation(operation);
       const transaction = tx_builder.build();
       const simResponse = await simulateTransaction(transaction);
+      if (surfaceRestore && rpc.Api.isSimulationRestore(simResponse)) {
+        return simResponse;
+      }
       const assembled_tx = rpc.assembleTransaction(transaction, simResponse).build();
       const padded_tx = addSorobanInstructionLeeway(assembled_tx);
       const extended_tx = addReflectorEntries(padded_tx.toXDR());
@@ -924,6 +935,29 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     }
   }
 
+  /**
+   * Simulate or submit one backstop manager contract call (or a token transfer
+   * into the manager contract), signed by the connected wallet.
+   */
+  async function backstopManagerInvoke(
+    operation: xdr.Operation,
+    sim: boolean,
+    poolId?: string
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
+    if (connected) {
+      if (sim) {
+        return await simulateOperation(operation);
+      }
+      const response = await invokeSorobanOperation(operation, true);
+      if (response !== undefined && rpc.Api.isSimulationRestore(response)) {
+        return response;
+      }
+      if (poolId === undefined) cleanBackstopCache();
+      else cleanBackstopPoolCache(poolId);
+      cleanWalletCache();
+    }
+  }
+
   /** Burn one legacy BLND for each pre-funded BLNT sent to the connected wallet. */
   async function backfillSwapBlndForBlnt(
     user: string,
@@ -1086,6 +1120,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         lockupBackfillClaim,
         contributorClaimAndFund,
         backstopManagerDepositAndClaim,
+        backstopManagerInvoke,
         backfillSwapBlndForBlnt,
         cometSingleSidedDeposit,
         cometJoin,

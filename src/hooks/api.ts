@@ -118,6 +118,7 @@ export function useQueryClientCacheCleaner(): {
         query.queryKey[0] === 'contributorGrant' ||
         query.queryKey[0] === 'lockupBackfillClaim' ||
         query.queryKey[0] === 'backstopManagerHelperState' ||
+        query.queryKey[0] === 'backstopManager' ||
         query.queryKey[0] === 'backfillSwap' ||
         query.queryKey[0] === 'sim',
     });
