@@ -165,7 +165,8 @@ export interface IWalletContext {
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
   backstopManagerInvoke(
     operation: xdr.Operation,
-    sim: boolean
+    sim: boolean,
+    poolId?: string
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
   backfillSwapBlndForBlnt(
     user: string,
@@ -934,14 +935,16 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
    */
   async function backstopManagerInvoke(
     operation: xdr.Operation,
-    sim: boolean
+    sim: boolean,
+    poolId?: string
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
     if (connected) {
       if (sim) {
         return await simulateOperation(operation);
       }
       await invokeSorobanOperation(operation);
-      cleanBackstopCache();
+      if (poolId === undefined) cleanBackstopCache();
+      else cleanBackstopPoolCache(poolId);
       cleanWalletCache();
     }
   }

@@ -1,6 +1,6 @@
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { Box, Input, MenuItem, Select, Tooltip, Typography, useTheme } from '@mui/material';
-import { rpc, scValToNative, xdr } from '@stellar/stellar-sdk';
+import { Asset, rpc, scValToNative, xdr } from '@stellar/stellar-sdk';
 import type { NextPage } from 'next';
 import { useRouter } from 'next/router';
 import { ReactNode, useEffect, useState } from 'react';
@@ -15,11 +15,13 @@ import { useSimulateOperation } from '../hooks/api';
 import {
   useBackstopManager,
   useSavedBackstopManagers,
+  useWalletNativeReserve,
   useWalletTokenBalances,
 } from '../hooks/backstopManager';
 import {
   ACTION_SCOPE,
   ASSET_LABEL,
+  BackstopManagerRestoreRequiredError,
   BackstopManagerState,
   canPerform,
   defaultDeposit,
@@ -41,8 +43,6 @@ import { bigintToInput, scaleInputToBigInt } from '../utils/scval';
 
 const DECIMALS = 7;
 const SLIPPAGE_BPS = BigInt(100);
-/** XLM left in the wallet for reserve and fees when funding with XLM */
-const XLM_KEEP = BigInt(50000000);
 const EXPERT_URL = process.env.NEXT_PUBLIC_STELLAR_EXPERT_URL;
 
 const fmt = (amount: bigint) => toBalance(amount, DECIMALS);
@@ -191,7 +191,7 @@ const PositionCard: React.FC<{ state: BackstopManagerState; position: ManagerPos
   position: p,
 }) => {
   const theme = useTheme();
-  const { viewType } = useSettings();
+  const { viewType, network } = useSettings();
   const { walletAddress, connected, backstopManagerInvoke } = useWallet();
   const can = (action: ManagerAction) => connected && canPerform(state, walletAddress, action);
   const lp = p.lpToken;
@@ -205,7 +205,7 @@ const PositionCard: React.FC<{ state: BackstopManagerState; position: ManagerPos
   const [withdrawAmount, setWithdrawAmount] = useState('');
 
   const send = async (op: xdr.Operation, clear?: () => void) => {
-    await backstopManagerInvoke(op, false);
+    await backstopManagerInvoke(op, false, p.pool);
     clear?.();
   };
 
@@ -215,13 +215,16 @@ const PositionCard: React.FC<{ state: BackstopManagerState; position: ManagerPos
     fundTokens.map((t) => t.id),
     connected
   );
+  const nativeTokenId = Asset.native().contractId(network.passphrase);
   const fundHeld = walletBalances?.[fundToken] ?? BigInt(0);
-  const fundIsXlm = fundTokens[fundToken].symbol === 'XLM';
-  const fundDefault = fundIsXlm
-    ? fundHeld > XLM_KEEP
-      ? fundHeld - XLM_KEEP
+  const fundIsXlm = fundTokens[fundToken].id === nativeTokenId;
+  const { data: nativeReserve } = useWalletNativeReserve(connected && fundIsXlm);
+  const fundMax = fundIsXlm
+    ? nativeReserve !== undefined && fundHeld > nativeReserve
+      ? fundHeld - nativeReserve
       : BigInt(0)
     : fundHeld;
+  const fundDefault = fundMax;
   const fund = parseAmount(fundAmount, fundDefault);
 
   // Join
@@ -347,7 +350,7 @@ const PositionCard: React.FC<{ state: BackstopManagerState; position: ManagerPos
         title="Fund"
         description="Send LP tokens, or the tokens the LP is made of, from your wallet to the contract. Then deposit (LP) or join (underlying)."
         allowed={connected}
-        disabled={fund === undefined || fund <= BigInt(0) || fund > fundHeld}
+        disabled={fund === undefined || fund <= BigInt(0) || fund > fundMax}
         button="Send"
         onSubmit={() =>
           send(managerOps.fund(state.id, fundTokens[fundToken].id, walletAddress, fund!), () =>
@@ -520,14 +523,20 @@ const PositionCard: React.FC<{ state: BackstopManagerState; position: ManagerPos
 const ManagerPage: NextPage = () => {
   const router = useRouter();
   const theme = useTheme();
-  const { walletAddress, connected } = useWallet();
+  const { walletAddress, connected, restore } = useWallet();
   const queryId = typeof router.query.id === 'string' ? router.query.id : '';
   const { savedManagers, saveManager, forgetManager } = useSavedBackstopManagers();
   const managerId = queryId !== '' ? queryId : savedManagers[0] ?? '';
   const [idInput, setIdInput] = useState(managerId);
   useEffect(() => setIdInput(managerId), [managerId]);
 
-  const { data: state, isLoading, error } = useBackstopManager(managerId, isContractId(managerId));
+  const {
+    data: state,
+    isLoading,
+    error,
+    refetch,
+  } = useBackstopManager(managerId, isContractId(managerId));
+  const [restoring, setRestoring] = useState(false);
 
   // Remember a contract in this browser once it loads as a backstop manager
   useEffect(() => {
@@ -615,6 +624,28 @@ const ManagerPage: NextPage = () => {
           <Typography>
             Paste your backstop manager contract ID above. It is saved in this browser only.
           </Typography>
+        </Row>
+      ) : error instanceof BackstopManagerRestoreRequiredError ? (
+        <Row sx={{ padding: '12px', gap: '12px', alignItems: 'center' }}>
+          <Typography>
+            Archived contract data must be restored before this manager can load.
+          </Typography>
+          <OpaqueButton
+            palette={theme.palette.backstop}
+            disabled={!connected || restoring}
+            onClick={async () => {
+              setRestoring(true);
+              try {
+                await restore(error.simulation);
+                await refetch();
+              } finally {
+                setRestoring(false);
+              }
+            }}
+            sx={{ padding: '6px 12px' }}
+          >
+            {connected ? (restoring ? 'Restoring…' : 'Restore') : 'Connect wallet to restore'}
+          </OpaqueButton>
         </Row>
       ) : error ? (
         <Row sx={{ padding: '12px' }}>

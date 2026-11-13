@@ -1,10 +1,11 @@
 import {
   BackstopAssetV3,
-  BackstopPoolUserV3,
-  BackstopPoolV3,
   BackstopTierV3,
   Network,
+  parseBackstopAssetV3,
+  PoolBackstopDataV3,
   Q4WV3,
+  UserBalanceV3,
 } from '@blend-capital/blend-sdk';
 import {
   Account,
@@ -35,6 +36,18 @@ export enum ManagerScope {
 export const SCOPE_NAMES = ['Low', 'Medium', 'High'];
 
 export const MAX_BPS = BigInt(10000);
+
+const EXPECTED_MANAGER_WASM_HASH = (
+  process.env.NEXT_PUBLIC_BACKSTOP_MANAGER_WASM_HASH ?? ''
+).toLowerCase();
+const EXPECTED_BACKSTOP_ID = process.env.NEXT_PUBLIC_BACKSTOP_V3 ?? '';
+
+export class BackstopManagerRestoreRequiredError extends Error {
+  constructor(public simulation: rpc.Api.SimulateTransactionRestoreResponse) {
+    super('Backstop manager data must be restored');
+    this.name = 'BackstopManagerRestoreRequiredError';
+  }
+}
 
 export type ManagerAction =
   | 'fund'
@@ -161,8 +174,10 @@ export function maxJoinOut(p: ManagerPosition): bigint {
 export function joinMaxAmountsIn(p: ManagerPosition, out: bigint, slippageBps: bigint): bigint[] {
   return p.underlying.map((token) => {
     // ceil(out * reserve / supply)
-    const expected = -((-out * token.cometBalance) / p.lpTotalSupply);
-    const limit = (expected * (MAX_BPS + slippageBps)) / MAX_BPS;
+    const numerator = out * token.cometBalance;
+    const expected = (numerator + p.lpTotalSupply - BigInt(1)) / p.lpTotalSupply;
+    const adjusted = expected * (MAX_BPS + slippageBps);
+    const limit = (adjusted + MAX_BPS - BigInt(1)) / MAX_BPS;
     return limit < token.contractBalance ? limit : token.contractBalance;
   });
 }
@@ -230,6 +245,9 @@ async function view<T>(stellarRpc: rpc.Server, network: Network, op: xdr.Operati
     .addOperation(op)
     .build();
   const response = await stellarRpc.simulateTransaction(transaction);
+  if (rpc.Api.isSimulationRestore(response)) {
+    throw new BackstopManagerRestoreRequiredError(response);
+  }
   if (!rpc.Api.isSimulationSuccess(response) || response.result?.retval === undefined) {
     throw new Error('Backstop manager view call failed');
   }
@@ -244,7 +262,7 @@ async function tokenHolding(
 ): Promise<TokenHolding> {
   const contract = new Contract(token);
   const [symbol, balance] = await Promise.all([
-    view<string>(stellarRpc, network, contract.call('symbol')).catch(() => '?'),
+    view<string>(stellarRpc, network, contract.call('symbol')),
     view<bigint>(stellarRpc, network, contract.call('balance', addr(holder))),
   ]);
   return {
@@ -278,27 +296,84 @@ export async function loadBackstopManagerState(
   const call = <T>(method: string, ...args: xdr.ScVal[]) =>
     view<T>(stellarRpc, network, manager.call(method, ...args));
 
-  const [owner, mgr, harvestBps, backstops, pools] = await Promise.all([
-    call<string>('owner'),
+  // A view simulation is intentional before the bytecode check: if the
+  // instance is archived it yields the restore footprint needed by the UI.
+  // No mutation is enabled unless the executable subsequently matches.
+  const owner = await call<string>('owner');
+  const instanceKey = xdr.LedgerKey.contractData(
+    new xdr.LedgerKeyContractData({
+      contract: Address.fromString(managerId).toScAddress(),
+      key: xdr.ScVal.scvLedgerKeyContractInstance(),
+      durability: xdr.ContractDataDurability.persistent(),
+    })
+  );
+  const instanceResponse = await stellarRpc.getLedgerEntries(instanceKey);
+  const actualWasmHash = instanceResponse.entries[0]?.val
+    .contractData()
+    .val()
+    .instance()
+    .executable()
+    .wasmHash()
+    .toString('hex')
+    .toLowerCase();
+  if (
+    EXPECTED_MANAGER_WASM_HASH === '' ||
+    actualWasmHash === undefined ||
+    actualWasmHash !== EXPECTED_MANAGER_WASM_HASH
+  ) {
+    throw new Error('Unrecognized backstop manager bytecode');
+  }
+
+  const [mgr, harvestBps, backstops, pools] = await Promise.all([
     call<{ id: string; scope: number }>('manager'),
     call<number>('harvest_bps'),
     call<string[]>('backstops'),
     call<string[]>('pools'),
   ]);
+  if (
+    EXPECTED_BACKSTOP_ID === '' ||
+    backstops.length === 0 ||
+    backstops.some((backstop) => backstop !== EXPECTED_BACKSTOP_ID)
+  ) {
+    throw new Error('Backstop manager is not bound to the configured V3 backstop');
+  }
 
   const positions: ManagerPosition[] = [];
   for (const backstop of backstops) {
     for (const pool of pools) {
-      const [poolData, user] = await Promise.all([
-        BackstopPoolV3.load(network, backstop, pool),
-        BackstopPoolUserV3.load(network, backstop, pool, managerId),
-      ]);
+      const backstopContract = new Contract(backstop);
+      const rawPoolData = await view<PoolBackstopDataV3>(
+        stellarRpc,
+        network,
+        backstopContract.call('pool_data', addr(pool))
+      );
+      const poolData: PoolBackstopDataV3 = {
+        ...rawPoolData,
+        tiers: rawPoolData.tiers.map((tier) => ({
+          ...tier,
+          asset: parseBackstopAssetV3(tier.asset),
+        })),
+      };
+      const configuredTiers = [
+        BackstopTierV3.FirstLoss,
+        BackstopTierV3.SecondLoss,
+        BackstopTierV3.ThirdLoss,
+      ].slice(0, poolData.tiers.length);
+      const userBalances = await Promise.all(
+        configuredTiers.map((tier) =>
+          view<UserBalanceV3>(
+            stellarRpc,
+            network,
+            backstopContract.call('user_balance', tierToScVal(tier), addr(pool), addr(managerId))
+          )
+        )
+      );
       const tiers = await Promise.all(
-        poolData.configuredTiers.map(async (tier): Promise<ManagerPosition> => {
-          const tierPool = poolData.tier(tier);
-          const lpId = tierPool.data.token;
+        configuredTiers.map(async (tier, index): Promise<ManagerPosition> => {
+          const tierData = poolData.tiers[index];
+          const lpId = tierData.token;
           const comet = new Contract(lpId);
-          const isComet = COMET_ASSETS.includes(tierPool.data.asset);
+          const isComet = COMET_ASSETS.includes(tierData.asset);
           const [lpToken, principal, harvestable, supply, cometTokens] = await Promise.all([
             tokenHolding(stellarRpc, network, lpId, managerId),
             call<bigint>('principal', addr(backstop), addr(pool), tierToScVal(tier)),
@@ -316,19 +391,19 @@ export async function loadBackstopManagerState(
               ),
             }))
           );
-          const balance = user.balance(tier);
+          const balance = userBalances[index];
           return {
             backstop,
             pool,
             tier,
-            asset: tierPool.data.asset,
+            asset: tierData.asset,
             lpToken,
             underlying,
             lpTotalSupply: BigInt(supply),
             shares: balance.shares,
             q4w: balance.q4w,
-            tierShares: tierPool.data.shares,
-            tierTokens: tierPool.data.tokens,
+            tierShares: tierData.shares,
+            tierTokens: tierData.tokens,
             principal: BigInt(principal),
             harvestable: BigInt(harvestable),
           };

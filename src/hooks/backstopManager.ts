@@ -1,3 +1,4 @@
+import { Horizon } from '@stellar/stellar-sdk';
 import { useQuery, UseQueryResult } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useLocalStorageState } from '.';
@@ -10,6 +11,13 @@ import {
 } from '../utils/backstop_manager';
 
 const STALE_TIME = 30 * 1000;
+const XLM_SCALE = BigInt(10_000_000);
+const XLM_FEE_BUFFER = BigInt(3) * XLM_SCALE;
+
+function amountToStroops(value: string): bigint {
+  const [whole = '0', fraction = ''] = value.split('.');
+  return BigInt(whole) * XLM_SCALE + BigInt((fraction + '0000000').slice(0, 7));
+}
 
 /**
  * Backstop manager contracts the user has opened, kept only in this browser's
@@ -75,5 +83,36 @@ export function useWalletTokenBalances(
     enabled: enabled && connected && walletAddress !== '' && tokens.length > 0,
     queryFn: () =>
       Promise.all(tokens.map((token) => loadTokenBalance(network, token, walletAddress))),
+  });
+}
+
+/** XLM that must remain for the account's live reserve, liabilities, and transaction fees. */
+export function useWalletNativeReserve(enabled: boolean = true): UseQueryResult<bigint, Error> {
+  const { network } = useSettings();
+  const { walletAddress, connected } = useWallet();
+  return useQuery({
+    staleTime: STALE_TIME,
+    queryKey: ['account', 'backstopManagerNativeReserve', walletAddress],
+    enabled: enabled && connected && walletAddress !== '',
+    queryFn: async () => {
+      const horizon = new Horizon.Server(network.horizonUrl, network.opts);
+      const [account, ledgers] = await Promise.all([
+        horizon.loadAccount(walletAddress),
+        horizon.ledgers().order('desc').limit(1).call(),
+      ]);
+      const latestLedger = ledgers.records[0];
+      if (latestLedger === undefined) throw new Error('Unable to load the current base reserve');
+      const reserveEntries = Math.max(
+        0,
+        2 + account.subentry_count + account.num_sponsoring - account.num_sponsored
+      );
+      const minimumBalance = BigInt(latestLedger.base_reserve_in_stroops) * BigInt(reserveEntries);
+      const nativeBalance = account.balances.find((balance) => balance.asset_type === 'native');
+      const sellingLiabilities =
+        nativeBalance !== undefined && 'selling_liabilities' in nativeBalance
+          ? amountToStroops(nativeBalance.selling_liabilities)
+          : BigInt(0);
+      return minimumBalance + sellingLiabilities + XLM_FEE_BUFFER;
+    },
   });
 }
