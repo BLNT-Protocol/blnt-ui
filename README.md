@@ -80,7 +80,11 @@ The tagged commit must be reachable from `main`, and the SDK commit is pinned in
 the release workflow.
 
 Configure the repository secret `PINATA_JWT_TOKEN` with a restricted Pinata
-JWT before publishing a tag. Releases are available from the
+JWT before publishing a tag. To publish the GitHub release automatically, also
+configure `RELEASE_TOKEN` with a repository-scoped fine-grained token that has
+`Contents: write` and `Workflows: write`; otherwise, the workflow retains the
+verified release bundle as a 30-day Actions artifact for a maintainer to
+publish. Releases are available from the
 [BLNT Trade releases page](https://github.com/BLNT-Protocol/blnt-ui/releases).
 
 ## Adding Custom Icons

@@ -218,9 +218,32 @@ jobs:
             release-artifacts/source-commit.txt \
             > release-artifacts/checksums.txt
 
+      - name: Preserve verified release artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: blnt-trade-${{ env.RELEASE_TAG }}
+          path: release-artifacts
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+      - name: Check automatic release credentials
+        id: release-auth
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          if [ -n "$RELEASE_TOKEN" ]; then
+            echo 'available=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'available=false' >> "$GITHUB_OUTPUT"
+            echo 'RELEASE_TOKEN is not configured; preserving artifacts for a maintainer-created release.'
+          fi
+
       - name: Create GitHub release
+        if: steps.release-auth.outputs.available == 'true'
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
+          token: ${{ secrets.RELEASE_TOKEN }}
           tag_name: ${{ env.RELEASE_TAG }}
           target_commitish: ${{ steps.source.outputs.commit }}
           name: BLNT Trade ${{ env.RELEASE_TAG }}
