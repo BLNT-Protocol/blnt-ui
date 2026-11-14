@@ -91,6 +91,17 @@ export const NavMenu = () => {
             <Typography>Discord</Typography>
             <OpenInNewIcon fontSize="inherit" />
           </MenuItem>
+          <MenuItem
+            component="a"
+            href="https://x.com/BlntProtocol"
+            target="_blank"
+            rel="noreferrer"
+            onClick={handleClose}
+            sx={{ color: '#FFFFFF', justifyContent: 'space-between' }}
+          >
+            <Typography>Twitter / X</Typography>
+            <OpenInNewIcon fontSize="inherit" />
+          </MenuItem>
           <Link href="/termsofservice">
             <MenuItem onClick={handleClose} sx={{ color: '#FFFFFF' }}>
               Terms of Service
@@ -164,6 +175,17 @@ export const NavMenu = () => {
             sx={{ color: '#FFFFFF', justifyContent: 'space-between' }}
           >
             <Typography>Discord</Typography>
+            <OpenInNewIcon fontSize="inherit" />
+          </MenuItem>
+          <MenuItem
+            component="a"
+            href="https://x.com/BlntProtocol"
+            target="_blank"
+            rel="noreferrer"
+            onClick={handleClose}
+            sx={{ color: '#FFFFFF', justifyContent: 'space-between' }}
+          >
+            <Typography>Twitter / X</Typography>
             <OpenInNewIcon fontSize="inherit" />
           </MenuItem>
           <Link href="/termsofservice">

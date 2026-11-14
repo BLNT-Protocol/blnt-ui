@@ -8,6 +8,7 @@ ORG_URL = "https://blnt.trade"
 ORG_LOGO = "https://blnt.trade/icons/tokens/blnt.png"
 ORG_DESCRIPTION = "BLNT Trade supports BLNT V3, an immutable Blend-derived lending protocol on Stellar designed for permissionless markets and real-world assets."
 ORG_GITHUB = "BLNT-Protocol"
+ORG_TWITTER = "BlntProtocol"
 ORG_OFFICIAL_EMAIL = "contact@blnt.trade"
 ORG_SUPPORT_EMAIL = "contact@blnt.trade"
 
