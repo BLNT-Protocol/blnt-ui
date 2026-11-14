@@ -76,15 +76,17 @@ local IPFS DAG, and pin the directory through Pinata. The workflow retrieves an
 exact CAR export of the pinned CID through an independent IPFS gateway, imports
 it locally, and byte-compares every exported file with the build. The GitHub
 release contains the CID, source commit, archive, verified CAR, and checksums.
-The tagged commit must be reachable from `main`, and the SDK commit is pinned in
-the release workflow.
+The tagged commit must equal current `main`, and the SDK commit is pinned in the
+release workflow.
 
 Configure the repository secret `PINATA_JWT_TOKEN` with a restricted Pinata
-JWT before publishing a tag. To publish the GitHub release automatically, also
-configure `RELEASE_TOKEN` with a repository-scoped fine-grained token that has
-`Contents: write` and `Workflows: write`; otherwise, the workflow retains the
-verified release bundle as a 30-day Actions artifact for a maintainer to
-publish. Releases are available from the
+JWT before publishing a tag. A normal version tag created from current `main`
+uses the built-in GitHub token to publish its release and retains the verified
+release bundle as a 30-day Actions artifact.
+
+If release publication fails after the artifact is preserved, download and
+publish that bundle instead of rebuilding or repinning the tag. Historical-tag
+rebuilds are intentionally unsupported. Releases are available from the
 [BLNT Trade releases page](https://github.com/BLNT-Protocol/blnt-ui/releases).
 
 ## Adding Custom Icons

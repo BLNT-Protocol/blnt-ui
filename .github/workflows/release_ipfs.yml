@@ -4,12 +4,6 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:
-    inputs:
-      release_tag:
-        description: Existing version tag to build and release
-        required: true
-        type: string
 
 permissions:
   contents: write
@@ -20,8 +14,7 @@ concurrency:
 
 env:
   SDK_COMMIT: 66fae2ef953e2855521048219d4309817e947ba2
-  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
-  SOURCE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref }}
+  RELEASE_TAG: ${{ github.ref_name }}
 
 jobs:
   build-pin-release:
@@ -32,11 +25,11 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           path: blnt-ui
-          ref: ${{ env.SOURCE_REF }}
+          ref: ${{ github.ref }}
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Require the tagged commit to be on main
+      - name: Require the tagged commit to equal main
         id: source
         working-directory: blnt-ui
         run: |
@@ -47,17 +40,8 @@ jobs:
           git fetch --no-tags origin main
           source_commit="$(git rev-parse "${RELEASE_TAG}^{commit}")"
           test "$source_commit" = "$(git rev-parse HEAD)"
-          git merge-base --is-ancestor "$source_commit" origin/main
+          test "$source_commit" = "$(git rev-parse origin/main)"
           printf 'commit=%s\n' "$source_commit" >> "$GITHUB_OUTPUT"
-
-      - name: Checkout current release tooling for a manual recovery
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          ref: main
-          path: release-tooling
-          sparse-checkout: .github/scripts
-          persist-credentials: false
 
       - name: Checkout pinned SDK
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -135,9 +119,6 @@ jobs:
           test -n "$PINATA_JWT_TOKEN"
           pin_name="blnt-trade-${RELEASE_TAG}-${SOURCE_COMMIT:0:7}"
           upload_script='blnt-ui/.github/scripts/upload-pinata-directory.mjs'
-          if [ "$GITHUB_EVENT_NAME" = 'workflow_dispatch' ]; then
-            upload_script='release-tooling/.github/scripts/upload-pinata-directory.mjs'
-          fi
           returned_cid="$(node "$upload_script" \
             blnt-ui/out \
             "$pin_name")"
@@ -211,6 +192,15 @@ jobs:
           test -s "$CAR_PATH"
           printf '%s\n' "$CID" > release-artifacts/ipfs-cid.txt
           printf '%s\n' "$SOURCE_COMMIT" > release-artifacts/source-commit.txt
+          {
+            printf '%s\n\n' '## BLNT Trade release'
+            printf '%s\n\n' 'This release contains the verified mainnet static export for BLNT Trade.'
+            printf -- '- Source commit: `%s`\n' "$SOURCE_COMMIT"
+            printf -- '- Pinned BLNT SDK commit: `%s`\n' "$SDK_COMMIT"
+            printf -- '- IPFS CID: `%s`\n' "$CID"
+            printf -- '- IPFS URI: `ipfs://%s/`\n\n' "$CID"
+            printf '%s\n' 'The release workflow retrieved the CID-addressed CAR through an independent IPFS gateway, imported it locally, and byte-compared every exported file with the tagged build. Verify the attached checksums before using the archive or CAR file.'
+          } > release-artifacts/release-notes.md
           sha256sum \
             "release-artifacts/blnt-trade-${RELEASE_TAG}.tar.gz" \
             "release-artifacts/blnt-trade-${RELEASE_TAG}.car" \
@@ -227,37 +217,14 @@ jobs:
           compression-level: 0
           retention-days: 30
 
-      - name: Check automatic release credentials
-        id: release-auth
-        env:
-          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-        run: |
-          if [ -n "$RELEASE_TOKEN" ]; then
-            echo 'available=true' >> "$GITHUB_OUTPUT"
-          else
-            echo 'available=false' >> "$GITHUB_OUTPUT"
-            echo 'RELEASE_TOKEN is not configured; preserving artifacts for a maintainer-created release.'
-          fi
-
       - name: Create GitHub release
-        if: steps.release-auth.outputs.available == 'true'
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
-          token: ${{ secrets.RELEASE_TOKEN }}
+          token: ${{ github.token }}
           tag_name: ${{ env.RELEASE_TAG }}
           target_commitish: ${{ steps.source.outputs.commit }}
           name: BLNT Trade ${{ env.RELEASE_TAG }}
-          body: |
-            ## BLNT Trade release
-
-            This release contains the mainnet static export served by BLNT Trade.
-
-            - Source commit: `${{ steps.source.outputs.commit }}`
-            - Pinned BLNT SDK commit: `${{ env.SDK_COMMIT }}`
-            - IPFS CID: `${{ steps.pinata.outputs.cid }}`
-            - IPFS URI: `ipfs://${{ steps.pinata.outputs.cid }}/`
-
-            Verify the attached checksums before using the archive or CAR file.
+          body_path: release-artifacts/release-notes.md
           draft: false
           prerelease: false
           files: |
