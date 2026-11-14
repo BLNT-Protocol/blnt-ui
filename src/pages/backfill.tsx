@@ -1,4 +1,4 @@
-import { Box, Typography } from '@mui/material';
+import { Box, Link, Typography } from '@mui/material';
 import type { NextPage } from 'next';
 import { BackfillEmissions } from '../components/backstop/BackfillEmissions';
 import { BackfillLockupEmissions } from '../components/backstop/BackfillLockupEmissions';
@@ -17,10 +17,18 @@ const BackfillPage: NextPage = () => {
       </Row>
       <Box sx={{ margin: '0 24px 24px' }}>
         <Typography variant="body1" color="text.secondary">
-          BLNT Backfill emissions distribute 74 million BLNT to pre-incident BLND:USDC Comet V1 LP
-          holders in proportion to their attributed LP shares. Allocations vest linearly over 180
-          days, can be claimed incrementally, and remain claimable after vesting ends. The BLNT
-          Backfill is independent of any official Blend remediation and does not impact eligibility.
+          BLNT Backfill emissions distribute 74 million{' '}
+          <Link
+            href="https://stellar.expert/explorer/public/asset/BLNT-GAP2ACGH3O6TRFAERGM4USJ6XWU3U2BFIK224JPV6NI3CUNEEEGTBTFB"
+            target="_blank"
+            rel="noreferrer"
+          >
+            BLNT
+          </Link>{' '}
+          to pre-incident BLND:USDC Comet V1 LP holders in proportion to their attributed LP shares.
+          Allocations vest linearly over 180 days, can be claimed incrementally, and remain
+          claimable after vesting ends. The BLNT Backfill is independent of any official Blend
+          remediation and does not impact eligibility.
         </Typography>
       </Box>
       <Divider />

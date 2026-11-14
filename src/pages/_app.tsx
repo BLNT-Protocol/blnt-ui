@@ -20,9 +20,9 @@ const DEFAULT_DESCRIPTION =
 const PAGE_METADATA: Record<string, { title: string; description: string }> = {
   '/': { title: DEFAULT_TITLE, description: DEFAULT_DESCRIPTION },
   '/backfill': {
-    title: 'BLNT Backfill Claims | BLNT Trade',
+    title: 'BLNT Backfill Emissions | BLNT Trade',
     description:
-      'Review and claim eligible BLNT backfill emissions, contributor grants, and lockup allocations through the BLNT Trade interface.',
+      'Review and claim BLNT backfill emissions for eligible pre-incident BLND:USDC Comet V1 LP holders through the BLNT Trade interface.',
   },
   '/termsofservice': {
     title: 'Terms of Use | BLNT Trade',
