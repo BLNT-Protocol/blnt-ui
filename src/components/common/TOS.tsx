@@ -183,7 +183,7 @@ export const TOS = () => {
 
       <Paragraph>
         Questions about the Site or these Terms may be sent to{' '}
-        <Link href="mailto:blntprotocol@gmail.com">blntprotocol@gmail.com</Link>. Technical issues
+        <Link href="mailto:contact@blnt.trade">contact@blnt.trade</Link>. Technical issues
         may also be submitted through the{' '}
         <Link href="https://github.com/blnt-protocol" target="_blank" rel="noreferrer">
           BLNT Protocol GitHub organization
