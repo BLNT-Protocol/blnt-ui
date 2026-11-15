@@ -14,7 +14,7 @@ const BackfillSwapPage: NextPage = () => {
         <GoBackButton sx={{ backgroundColor: theme.palette.background.paper, margin: '12px' }} />
         <Icon
           src="/icons/tokens/blnd-yellow.svg"
-          alt="BLND and BLNT conversion"
+          alt="BLND token icon"
           isCircle={false}
           height="30px"
           width="45px"

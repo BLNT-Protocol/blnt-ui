@@ -164,10 +164,9 @@ export const BackfillEmissions: React.FC = () => {
                   >
                     <Icon
                       alt="BLNT Token Icon"
-                      src="/icons/tokens/blnd-yellow.svg"
+                      src="/icons/tokens/blnt.png"
                       height="24px"
-                      width="18px"
-                      isCircle={false}
+                      width="24px"
                     />
                   </Box>
                 ) : (

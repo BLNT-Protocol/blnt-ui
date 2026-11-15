@@ -3,11 +3,7 @@ import { Box, SxProps, Theme, Typography, useTheme } from '@mui/material';
 import { rpc } from '@stellar/stellar-sdk';
 import { useSettings, ViewType } from '../../contexts';
 import { useWallet } from '../../contexts/wallet';
-import {
-  useHorizonAccount,
-  useLockupBackfillClaim,
-  useSimulateOperation,
-} from '../../hooks/api';
+import { useHorizonAccount, useLockupBackfillClaim, useSimulateOperation } from '../../hooks/api';
 import {
   BLNT_LOCKUP_BACKFILL_ID,
   buildClaimLockupBackfillOperation,
@@ -152,10 +148,9 @@ export const BackfillLockupEmissions: React.FC = () => {
                     >
                       <Icon
                         alt="BLNT Token Icon"
-                        src="/icons/tokens/blnd-yellow.svg"
+                        src="/icons/tokens/blnt.png"
                         height="24px"
-                        width="18px"
-                        isCircle={false}
+                        width="24px"
                       />
                     </Box>
                   ) : (

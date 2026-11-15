@@ -28,7 +28,7 @@ import {
 import { Version } from '../../utils/version';
 import { RPC_DEBOUNCE_DELAY, useDebouncedState } from '../../hooks/debounce';
 import { PoolMeta } from '../../hooks/types';
-import { getTierIcon, getTierLabel } from '../../utils/backstop';
+import { getTierLabel } from '../../utils/backstop';
 import { toBalance, toTimeSpan } from '../../utils/formatter';
 import { bigintToInput, scaleInputToBigInt } from '../../utils/scval';
 import { getErrorFromSim, getPoolPermissionError } from '../../utils/txSim';
@@ -45,6 +45,7 @@ import { TxOverview } from '../common/TxOverview';
 import { Value } from '../common/Value';
 import { ValueChange } from '../common/ValueChange';
 import { BackstopAuthorizationStatus } from './BackstopAuthorizationStatus';
+import { BackstopTierIcon } from './BackstopTierIcon';
 
 export function parseBackstopTier(value: string | string[] | undefined): BackstopTierV3 {
   return Object.values(BackstopTierV3).includes(value as BackstopTierV3)
@@ -375,10 +376,14 @@ export const BackstopV3Action: React.FC<{
               type === 'q4w'
                 ? pool.configuredTiers.map((optionTier) => {
                     const data = pool.tier(optionTier).data;
-                    return {
-                      src: getTierIcon(optionTier, data.token, data.asset),
-                      alt: getTierLabel(optionTier, data.token, data.asset),
-                    };
+                    return (
+                      <BackstopTierIcon
+                        key={optionTier}
+                        tier={optionTier}
+                        token={data.token}
+                        asset={data.asset}
+                      />
+                    );
                   })
                 : undefined
             }

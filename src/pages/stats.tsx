@@ -14,6 +14,8 @@ const formatUsd = (value: number | undefined, decimals?: number) =>
   value === undefined ? '--' : `$${toBalance(value, decimals)}`;
 const formatBlnt = (value: bigint | undefined) =>
   value === undefined ? '--' : `${toBalance(value, TOKEN_DECIMALS)} BLNT`;
+const formatBlnd = (value: bigint | undefined) =>
+  value === undefined ? '--' : `${toBalance(value, TOKEN_DECIMALS)} BLND`;
 
 const StatCard: React.FC<{
   label: string;
@@ -235,7 +237,7 @@ const StatsPage: NextPage = () => {
             >
               <DetailRow
                 label="BLND burned for BLNT"
-                value={toBalance(stats.backfill.totalSwapped, TOKEN_DECIMALS)}
+                value={formatBlnd(stats.backfill.totalSwapped)}
               />
               <DetailRow
                 label="Remaining capacity"

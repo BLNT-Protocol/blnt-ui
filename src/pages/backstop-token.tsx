@@ -6,6 +6,7 @@ import { useRouter } from 'next/router';
 import { Asset } from '@stellar/stellar-sdk';
 import { BackstopExitAnvil } from '../components/backstop/BackstopExitAnvil';
 import { BackstopJoinAnvil } from '../components/backstop/BackstopJoinAnvil';
+import { BackstopTierIcon } from '../components/backstop/BackstopTierIcon';
 import { Divider } from '../components/common/Divider';
 import { GoBackButton } from '../components/common/GoBackButton';
 import { Icon } from '../components/common/Icon';
@@ -22,7 +23,6 @@ import {
   usePoolMeta,
   useTokenBalance,
 } from '../hooks/api';
-import { getTierIcon } from '../utils/backstop';
 import { toBalance } from '../utils/formatter';
 import { BLND_ASSET, BLNT_ASSET, USDC_ASSET, V3_USDC_ASSET } from '../utils/token_display';
 import { Version } from '../utils/version';
@@ -101,11 +101,6 @@ const BackstopToken: NextPage = () => {
 
   const title =
     viewType === ViewType.MOBILE ? lpSymbol : `80:20 ${lpSymbol.replace(' LP', '')} Liquidity Pool`;
-  const headerIcon =
-    tier === undefined ? '/icons/pageicons/blnd_usdc_pair.svg' : getTierIcon(tier, cometPoolId);
-  const lpIcon =
-    tier === undefined ? '/icons/tokens/blndusdclp.svg' : getTierIcon(tier, cometPoolId);
-
   if (!router.isReady || tierRouteLoading) return <Skeleton />;
 
   if (invalidTier || tierLoadError || unconfiguredTier || plainAssetTier) {
@@ -140,14 +135,23 @@ const BackstopToken: NextPage = () => {
     <>
       <Row sx={{ margin: '12px', justifyContent: 'flex-start', alignItems: 'center' }}>
         <GoBackButton sx={{ backgroundColor: theme.palette.background.paper, margin: '12px' }} />
-        <Icon
-          src={headerIcon}
-          alt={lpSymbol}
-          isCircle={false}
-          height={'30px'}
-          width={'45px'}
-          sx={{ marginRight: '12px' }}
-        />
+        {tier === undefined ? (
+          <Icon
+            src="/icons/pageicons/blnd_usdc_pair.svg"
+            alt={lpSymbol}
+            isCircle={false}
+            height="30px"
+            width="45px"
+            sx={{ marginRight: '12px' }}
+          />
+        ) : (
+          <BackstopTierIcon
+            tier={tier}
+            token={cometPoolId}
+            asset={configuredTier?.data.asset}
+            sx={{ marginRight: '12px' }}
+          />
+        )}
         <Typography variant="h2">{title}</Typography>
         <IconButton
           onClick={() =>
@@ -192,7 +196,20 @@ const BackstopToken: NextPage = () => {
             width={SectionSize.FULL}
             sx={{ alignItems: 'center', justifyContent: 'flex-start', padding: '12px' }}
           >
-            <Icon src={lpIcon} alt={`lp token icon`} sx={{ marginRight: '12px' }} />
+            {tier === undefined ? (
+              <Icon
+                src="/icons/tokens/blndusdclp.svg"
+                alt="LP token icon"
+                sx={{ marginRight: '12px' }}
+              />
+            ) : (
+              <BackstopTierIcon
+                tier={tier}
+                token={cometPoolId}
+                asset={configuredTier?.data.asset}
+                sx={{ marginRight: '12px' }}
+              />
+            )}
             <StackedText
               title="Your LP Balance"
               titleColor="inherit"
@@ -209,7 +226,20 @@ const BackstopToken: NextPage = () => {
             width={SectionSize.THIRD}
             sx={{ alignItems: 'center', justifyContent: 'flex-start', padding: '12px' }}
           >
-            <Icon src={lpIcon} alt={`lp token icon`} sx={{ marginRight: '12px' }} />
+            {tier === undefined ? (
+              <Icon
+                src="/icons/tokens/blndusdclp.svg"
+                alt="LP token icon"
+                sx={{ marginRight: '12px' }}
+              />
+            ) : (
+              <BackstopTierIcon
+                tier={tier}
+                token={cometPoolId}
+                asset={configuredTier?.data.asset}
+                sx={{ marginRight: '12px' }}
+              />
+            )}
             <StackedText
               title="Your LP Token Balance"
               titleColor="inherit"
@@ -224,7 +254,7 @@ const BackstopToken: NextPage = () => {
           sx={{ alignItems: 'center', justifyContent: 'flex-start', padding: '12px' }}
         >
           <Icon
-            src={isV3 ? '/icons/tokens/blnd-yellow.svg' : '/icons/tokens/blnd.svg'}
+            src={isV3 ? '/icons/tokens/blnt.png' : '/icons/tokens/blnd.svg'}
             alt={`${primarySymbol.toLowerCase()} icon`}
             sx={{ marginRight: '12px' }}
           />

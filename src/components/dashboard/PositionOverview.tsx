@@ -233,11 +233,11 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
                 }}
               >
                 <Icon
-                  alt="BLND Token Icon"
-                  src="/icons/tokens/blnd-yellow.svg"
+                  alt={`${emissionsAsset.code} Token Icon`}
+                  src={isV3 ? '/icons/tokens/blnt.png' : '/icons/tokens/blnd-yellow.svg'}
                   height="24px"
-                  width="18px"
-                  isCircle={false}
+                  width={isV3 ? '24px' : '18px'}
+                  isCircle={isV3}
                 />
               </Box>
               <StackedText

@@ -31,14 +31,12 @@ import {
   getAnnualBackstopInterestValue,
   getBackstopTierEmissionsApyV3,
   getBackstopTierInterestApysV3,
-  getTierIcon,
   getTierLabel,
 } from '../../utils/backstop';
 import { toBalance, toPercentage } from '../../utils/formatter';
 import { CustomButton } from '../common/CustomButton';
 import { Divider } from '../common/Divider';
 import { FlameIcon } from '../common/FlameIcon';
-import { Icon } from '../common/Icon';
 import { LinkBox } from '../common/LinkBox';
 import { OpaqueButton } from '../common/OpaqueButton';
 import { RateDisplay } from '../common/RateDisplay';
@@ -51,6 +49,7 @@ import { PoolExploreBar } from '../pool/PoolExploreBar';
 import { PoolHealthBanner } from '../pool/PoolHealthBanner';
 import { BackstopAPR } from './BackstopAPR';
 import { BackstopAuthorizationStatus } from './BackstopAuthorizationStatus';
+import { BackstopTierIcon } from './BackstopTierIcon';
 import { BackstopV3QueueItem } from './BackstopV3Action';
 
 interface V3ClaimButtonProps {
@@ -114,10 +113,11 @@ const V3ClaimButton: React.FC<V3ClaimButtonProps> = ({ poolMeta, pool, tier }) =
     >
       <Box sx={{ display: 'flex', alignItems: 'center' }}>
         <FlameIcon />
-        <Icon
-          src={getTierIcon(tier, tierData.token, tierData.asset)}
-          alt={tierLabel}
-          sx={{ height: '30px', width: '30px', marginRight: '12px' }}
+        <BackstopTierIcon
+          tier={tier}
+          token={tierData.token}
+          asset={tierData.asset}
+          sx={{ marginRight: '12px' }}
         />
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
           {isRestore ? (
@@ -249,10 +249,11 @@ const V3TierCard: React.FC<V3TierCardProps> = ({
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
-            <Icon
-              src={getTierIcon(tier, tierPool.data.token, tierPool.data.asset)}
-              alt={tierLabel}
-              sx={{ height: '30px', width: '30px', marginRight: '12px' }}
+            <BackstopTierIcon
+              tier={tier}
+              token={tierPool.data.token}
+              asset={tierPool.data.asset}
+              sx={{ marginRight: '12px' }}
             />
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
               <Typography variant="h4">{tierLabel}</Typography>

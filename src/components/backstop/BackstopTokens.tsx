@@ -91,7 +91,7 @@ export const BackstopTokens: React.FC = () => {
           >
             <Box sx={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center' }}>
               <Icon
-                alt="BLND and BLNT token icon"
+                alt="BLND token icon"
                 src="/icons/tokens/blnd-yellow.svg"
                 height="32px"
                 width="24px"
