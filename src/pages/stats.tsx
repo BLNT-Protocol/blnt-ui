@@ -228,7 +228,7 @@ const StatsPage: NextPage = () => {
             </ProgressCard>
 
             <ProgressCard
-              title="Swap-and-burn status"
+              title="Swap-and-burn usage"
               status={toPercentage(swapRatio)}
               progress={swapRatio * 100}
               color={swapActive ? theme.palette.primary.main : theme.palette.text.secondary}

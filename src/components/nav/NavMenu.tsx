@@ -71,6 +71,11 @@ export const NavMenu = () => {
               Settings
             </MenuItem>
           </Link>
+          <Link href="/stats">
+            <MenuItem onClick={handleClose} sx={{ color: '#FFFFFF' }}>
+              Stats
+            </MenuItem>
+          </Link>
           <a href="https://github.com/blnt-protocol" target="_blank" rel="noreferrer">
             <MenuItem
               onClick={handleClose}
@@ -155,6 +160,11 @@ export const NavMenu = () => {
           <Link href="/settings">
             <MenuItem onClick={handleClose} sx={{ color: '#FFFFFF' }}>
               Settings
+            </MenuItem>
+          </Link>
+          <Link href="/stats">
+            <MenuItem onClick={handleClose} sx={{ color: '#FFFFFF' }}>
+              Stats
             </MenuItem>
           </Link>
           <a href="https://github.com/blnt-protocol" target="_blank" rel="noreferrer">

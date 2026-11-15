@@ -24,6 +24,11 @@ const PAGE_METADATA: Record<string, { title: string; description: string }> = {
     description:
       'Review and claim BLNT backfill emissions for eligible pre-incident BLND:USDC Comet V1 LP holders through the BLNT Trade interface.',
   },
+  '/contracts': {
+    title: 'BLNT V3 Mainnet Addresses | BLNT Trade',
+    description:
+      'Verify the canonical BLNT asset and BLNT V3 mainnet contract addresses on StellarExpert.',
+  },
   '/termsofservice': {
     title: 'Terms of Use | BLNT Trade',
     description:
