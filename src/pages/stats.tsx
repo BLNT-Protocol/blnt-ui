@@ -176,7 +176,7 @@ const StatsPage: NextPage = () => {
             <StatCard
               label="Circulating supply"
               value={formatBlnt(stats.circulatingSupply)}
-              detail="Total BLNT supply minus BLNT held by the backfill contracts"
+              detail="Total BLNT supply minus BLNT held by backfill contracts or awaiting emission claims"
               color={theme.palette.primary.main}
             />
             <StatCard

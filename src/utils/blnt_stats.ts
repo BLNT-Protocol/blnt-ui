@@ -46,6 +46,7 @@ export interface BlntProtocolStats {
   totalSupply: bigint;
   backfillBalance: bigint;
   lockupBackfillBalance: bigint;
+  backstopBlntBalance: bigint;
   circulatingSupply: bigint;
   marketCap: number;
   totalSupplied: number;
@@ -209,6 +210,7 @@ export async function loadBlntProtocolStats(
     totalSupply,
     backfillBalance,
     lockupBackfillBalance,
+    backstopBlntBalance,
     backfillSwap,
     backfillAllocated,
     vestingStart,
@@ -220,6 +222,7 @@ export async function loadBlntProtocolStats(
     loadTotalSupply(network.horizonUrl, 'BLNT', config.blntIssuer),
     loadTokenBalance(network, config.blntTokenId, config.backfillId),
     loadTokenBalance(network, config.blntTokenId, config.lockupBackfillId),
+    loadTokenBalance(network, config.blntTokenId, config.backstopId),
     loadBackfillSwapState(network, config.backfillId),
     loadBigIntView(network, config.backfillId, 'get_backfill_allocated'),
     loadBigIntView(network, config.backfillId, 'get_vesting_start'),
@@ -239,7 +242,7 @@ export async function loadBlntProtocolStats(
   // The canonical pool is an 80% BLNT / 20% USDC Comet pool. Its USDC side
   // therefore represents one fifth of pool value and its BLNT side four fifths.
   const blntPrice = (Number(comet.usdc) * 4) / Number(comet.blnd);
-  const excludedSupply = backfillBalance + lockupBackfillBalance;
+  const excludedSupply = backfillBalance + lockupBackfillBalance + backstopBlntBalance;
   const circulatingSupply = totalSupply > excludedSupply ? totalSupply - excludedSupply : BigInt(0);
   const totals = poolStats.reduce(
     (result, pool) => ({
@@ -266,6 +269,7 @@ export async function loadBlntProtocolStats(
     totalSupply,
     backfillBalance,
     lockupBackfillBalance,
+    backstopBlntBalance,
     circulatingSupply,
     marketCap: FixedMath.toFloat(circulatingSupply, TOKEN_DECIMALS) * blntPrice,
     totalSupplied: totals.supplied,
