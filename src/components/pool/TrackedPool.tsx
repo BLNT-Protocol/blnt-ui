@@ -29,6 +29,7 @@ export const TrackedPool: React.FC<TrackedPoolProps> = ({ name, id, version, sx,
       <PoolIcon
         name={name}
         poolAddress={id}
+        version={version}
         sx={{ height: '30px', width: '30px', borderRadius: '50%' }}
       />
       <Row sx={{ flexDirection: 'column' }}>

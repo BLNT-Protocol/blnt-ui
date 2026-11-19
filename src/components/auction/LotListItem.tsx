@@ -1,24 +1,28 @@
 import { Reserve } from '@blend-capital/blend-sdk';
-import { Box, BoxProps, Typography, useTheme } from '@mui/material';
+import { Box, BoxProps, Typography } from '@mui/material';
 import { useSettings, ViewType } from '../../contexts';
 import { toBalance } from '../../utils/formatter';
-import { Icon } from '../common/Icon';
+import { Version } from '../../utils/version';
 import { TokenHeader } from '../common/TokenHeader';
+import { AuctionBackstopTokenHeader } from './AuctionBackstopTokenHeader';
 
 export interface LotItemProps extends BoxProps {
+  assetId: string;
   reserve: Reserve | undefined;
+  version: Version;
   type: string;
   amount: bigint;
   oracleValue: number | undefined;
 }
 export const LotListItem: React.FC<LotItemProps> = ({
+  assetId,
   reserve,
+  version,
   amount,
   type,
   oracleValue,
   ...props
 }) => {
-  const theme = useTheme();
   const { viewType } = useSettings();
 
   const tableNum = viewType == ViewType.REGULAR ? 3 : 3;
@@ -45,17 +49,7 @@ export const LotListItem: React.FC<LotItemProps> = ({
         {reserve ? (
           <TokenHeader assetId={reserve.assetId} />
         ) : (
-          <Box sx={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center' }}>
-            <Icon
-              src={`/icons/tokens/blndusdclp.svg`}
-              alt={`blndusdclp`}
-              sx={{ height: '30px', width: '30px', marginRight: '12px' }}
-            />
-
-            <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
-              BLND-USDC LP
-            </Typography>
-          </Box>
+          <AuctionBackstopTokenHeader token={assetId} version={version} />
         )}
       </Box>
       <Box

@@ -2,6 +2,7 @@ import { Pool } from '@blend-capital/blend-sdk';
 import { Box, BoxProps, Typography } from '@mui/material';
 import { useSettings, ViewType } from '../../contexts';
 import { usePoolOracle } from '../../hooks/api';
+import { getPoolDeploymentVersion } from '../../utils/version';
 import { LotListItem } from './LotListItem';
 
 export interface LotListProps extends BoxProps {
@@ -14,6 +15,7 @@ export interface LotListProps extends BoxProps {
 export const LotList: React.FC<LotListProps> = ({ pool, lot, type, lotValue }) => {
   const { viewType } = useSettings();
   const { data: poolOracle } = usePoolOracle(pool);
+  const version = getPoolDeploymentVersion(pool);
 
   const headerNum = viewType == ViewType.REGULAR ? 3 : 3;
   const headerWidth = `${(100 / headerNum).toFixed(2)}%`;
@@ -78,7 +80,9 @@ export const LotList: React.FC<LotListProps> = ({ pool, lot, type, lotValue }) =
       {Array.from(lot.entries()).map(([asset, amount]) => (
         <LotListItem
           key={asset}
+          assetId={asset}
           reserve={pool.reserves.get(asset)}
+          version={version}
           type={type}
           amount={amount}
           oracleValue={lotValue.get(asset)}

@@ -1,6 +1,7 @@
 import { Pool } from '@blend-capital/blend-sdk';
 import { Box, BoxProps, Typography } from '@mui/material';
 import { useSettings, ViewType } from '../../contexts';
+import { getPoolDeploymentVersion } from '../../utils/version';
 import { BidListItem } from './BidListItem';
 
 export interface BidListProps extends BoxProps {
@@ -12,6 +13,7 @@ export interface BidListProps extends BoxProps {
 
 export const BidList: React.FC<BidListProps> = ({ pool, bid, type, bidValue }) => {
   const { viewType } = useSettings();
+  const version = getPoolDeploymentVersion(pool);
   const headerNum = viewType == ViewType.REGULAR ? 3 : 3;
   const headerWidth = `${(100 / headerNum).toFixed(2)}%`;
   return (
@@ -73,7 +75,9 @@ export const BidList: React.FC<BidListProps> = ({ pool, bid, type, bidValue }) =
       {Array.from(bid.entries()).map(([asset, amount]) => (
         <BidListItem
           key={asset}
+          assetId={asset}
           reserve={pool.reserves.get(asset)!}
+          version={version}
           type={type}
           amount={amount}
           oracleValue={bidValue.get(asset)}

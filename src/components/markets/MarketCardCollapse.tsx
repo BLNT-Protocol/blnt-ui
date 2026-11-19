@@ -4,7 +4,9 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { Box, BoxProps, Typography, useTheme } from '@mui/material';
 import { useSettings, ViewType } from '../../contexts';
+import { BackstopPoolMetrics } from '../../utils/backstop';
 import { toBalance, toCompactAddress, toPercentage } from '../../utils/formatter';
+import { getPoolDeploymentVersion } from '../../utils/version';
 import { Icon } from '../common/Icon';
 import { LinkBox } from '../common/LinkBox';
 import { OpaqueButton } from '../common/OpaqueButton';
@@ -14,7 +16,6 @@ import { StackedTextBox } from '../common/StackedTextBox';
 import { TooltipText } from '../common/TooltipText';
 import { PoolIcon } from '../pool/PoolIcon';
 import { ReserveList } from './ReserveList';
-import { BackstopPoolMetrics } from '../../utils/backstop';
 
 export interface MarketCardCollapseProps extends BoxProps {
   pool: Pool;
@@ -68,6 +69,7 @@ export const MarketCardCollapse: React.FC<MarketCardCollapseProps> = ({
           <PoolIcon
             name={pool.metadata.name}
             poolAddress={pool.id}
+            version={getPoolDeploymentVersion(pool)}
             sx={{ margin: '6px', height: '30px', width: '30px' }}
           />
           <Box sx={{ padding: '6px', display: 'flex', flexDirection: 'row', height: '30px' }}>

@@ -31,6 +31,7 @@ export const PoolHeader: React.FC<PoolHeaderProps> = ({
       <PoolIcon
         name={name}
         poolAddress={poolAddress}
+        version={version}
         sx={{ height: '30px', width: '30px', borderRadius: '50%' }}
       />
       <Typography variant="h3" sx={{ marginLeft: '6px' }}>
