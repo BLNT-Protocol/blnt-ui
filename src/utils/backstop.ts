@@ -200,5 +200,8 @@ export function getTierIcon(
   if (asset === BackstopAssetV3.BlntUsdc || token === process.env.NEXT_PUBLIC_BLND_USDC_COMET) {
     return '/icons/tokens/blndusdclp.svg';
   }
+  if (asset === BackstopAssetV3.Usdc || token === process.env.NEXT_PUBLIC_USDC_TOKEN) {
+    return '/icons/tokens/usdc.svg';
+  }
   return '/icons/tokens/soroban.svg';
 }
