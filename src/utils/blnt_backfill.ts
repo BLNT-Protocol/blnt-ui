@@ -157,13 +157,13 @@ async function loadContributorGrantAllocation(
     new xdr.LedgerKeyContractData({
       contract: Address.fromString(backfillId).toScAddress(),
       key: xdr.ScVal.scvVec([xdr.ScVal.scvSymbol('GrantClaims')]),
-      durability: xdr.ContractDataDurability.persistent(),
+      durability: xdr.ContractDataDurability.persistent,
     })
   );
   const response = await stellarRpc.getLedgerEntries(grantClaimsKey);
   if (response.entries.length !== 1) return BigInt(0);
 
-  const entry = response.entries[0].val.contractData().val();
+  const entry = xdr.expectUnionVariant(response.entries[0].val, 'contractData').contractData.val;
   const grants = scValToNative(entry) as Record<string, unknown>;
   const allocation = grants?.[grantee];
   return typeof allocation === 'bigint' && allocation > BigInt(0) ? allocation : BigInt(0);

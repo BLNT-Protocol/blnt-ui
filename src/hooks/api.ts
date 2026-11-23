@@ -475,23 +475,24 @@ export function usePool(
     queryKey: ['pool', poolMeta?.id],
     enabled: enabled && poolMeta !== undefined,
     queryFn: async () => {
-      if (poolMeta !== undefined) {
-        try {
-          if (poolMeta.version === Version.V3) {
-            return await PoolV3.loadWithMetadata(network, poolMeta.id, poolMeta);
-          } else if (isV2Contracts(poolMeta.version)) {
-            return await PoolV2.loadWithMetadata(network, poolMeta.id, poolMeta);
-          } else if (poolMeta.wasmHash === POOL_WASM_V2) {
-            const pool = await PoolV2.loadWithMetadata(network, poolMeta.id, poolMeta);
-            pool.version = SdkVersion.V1;
-            return pool;
-          } else {
-            return await PoolV1.loadWithMetadata(network, poolMeta.id, poolMeta);
-          }
-        } catch (e: any) {
-          console.error('Error fetching pool data', e);
-          throw e;
+      if (poolMeta === undefined) {
+        throw new Error('Pool metadata is required');
+      }
+      try {
+        if (poolMeta.version === Version.V3) {
+          return await PoolV3.loadWithMetadata(network, poolMeta.id, poolMeta);
+        } else if (isV2Contracts(poolMeta.version)) {
+          return await PoolV2.loadWithMetadata(network, poolMeta.id, poolMeta);
+        } else if (poolMeta.wasmHash === POOL_WASM_V2) {
+          const pool = await PoolV2.loadWithMetadata(network, poolMeta.id, poolMeta);
+          pool.version = SdkVersion.V1;
+          return pool;
+        } else {
+          return await PoolV1.loadWithMetadata(network, poolMeta.id, poolMeta);
         }
+      } catch (e: any) {
+        console.error('Error fetching pool data', e);
+        throw e;
       }
     },
   });
@@ -541,32 +542,32 @@ export function usePoolOracle(
     queryKey: ['poolOracle', pool?.id],
     enabled: pool !== undefined && enabled,
     queryFn: async () => {
-      if (pool !== undefined) {
-        if (ORACLE_PRICE_FETCHER) {
-          try {
-            const { decimals, latestLedger } = await getOracleDecimals(
-              network,
-              pool.metadata.oracle
-            );
-            const prices = await getOraclePrices(
-              network,
-              ORACLE_PRICE_FETCHER,
-              pool.metadata.oracle,
-              pool.metadata.reserveList
-            );
-            if (prices.size < pool.metadata.reserveList.length) {
-              throw new Error('Invalid number of prices returned from oracle');
-            }
-            return new PoolOracle(pool.metadata.oracle, prices, decimals, latestLedger);
-          } catch (e: any) {
-            console.error('Price fetcher call failed: ', e);
-            // if the oracle fetcher fails, fallback to default loading method
-            return await pool.loadOracle();
+      if (pool === undefined) {
+        throw new Error('Pool is required');
+      }
+      if (ORACLE_PRICE_FETCHER) {
+        try {
+          const { decimals, latestLedger } = await getOracleDecimals(
+            network,
+            pool.metadata.oracle
+          );
+          const prices = await getOraclePrices(
+            network,
+            ORACLE_PRICE_FETCHER,
+            pool.metadata.oracle,
+            pool.metadata.reserveList
+          );
+          if (prices.size < pool.metadata.reserveList.length) {
+            throw new Error('Invalid number of prices returned from oracle');
           }
-        } else {
+          return new PoolOracle(pool.metadata.oracle, prices, decimals, latestLedger);
+        } catch (e: any) {
+          console.error('Price fetcher call failed: ', e);
+          // if the oracle fetcher fails, fallback to default loading method
           return await pool.loadOracle();
         }
       }
+      return await pool.loadOracle();
     },
     retry: 1,
     retryDelay: 1000,
@@ -594,9 +595,10 @@ export function usePoolUser(
       new Map()
     ),
     queryFn: async () => {
-      if (pool !== undefined && walletAddress !== '') {
-        return await pool.loadUser(walletAddress);
+      if (pool === undefined || walletAddress === '') {
+        throw new Error('Pool and wallet address are required');
       }
+      return await pool.loadUser(walletAddress);
     },
   });
 }
@@ -662,7 +664,7 @@ export function useEmitterBackstop(
     queryKey: ['emitterBackstop', emitterId],
     enabled: enabled && connected && walletAddress !== '' && emitterId !== '',
     queryFn: async () => {
-      const operation = xdr.Operation.fromXDR(
+      const operation = xdr.Operation.fromXdr(
         new EmitterContract(emitterId).getBackstop(),
         'base64'
       );
@@ -678,7 +680,7 @@ export function useEmitterBackstop(
         transaction
       );
       if (rpc.Api.isSimulationSuccess(result) && result.result !== undefined) {
-        return EmitterContract.parsers.getBackstop(result.result.retval.toXDR('base64'));
+        return EmitterContract.parsers.getBackstop(result.result.retval.toXdr('base64'));
       }
       throw new Error('Unable to load the emitter backstop');
     },
@@ -786,17 +788,18 @@ export function useBackstopPool(
     queryKey: ['backstopPool', poolMeta?.id],
     enabled: enabled && poolMeta !== undefined,
     queryFn: async () => {
-      if (poolMeta !== undefined) {
-        if (poolMeta.version === Version.V3) {
-          return await BackstopPoolV3.load(network, BACKSTOP_IDS[Version.V3], poolMeta.id);
-        }
-        if (poolMeta.version === Version.V1 && poolMeta.wasmHash === POOL_WASM_V2) {
-          return await BackstopPoolV2.load(network, BACKSTOP_IDS[Version.V1], poolMeta.id);
-        }
-        return isV2Contracts(poolMeta.version)
-          ? await BackstopPoolV2.load(network, BACKSTOP_IDS[poolMeta.version], poolMeta.id)
-          : await BackstopPoolV1.load(network, BACKSTOP_IDS[Version.V1], poolMeta.id);
+      if (poolMeta === undefined) {
+        throw new Error('Pool metadata is required');
       }
+      if (poolMeta.version === Version.V3) {
+        return await BackstopPoolV3.load(network, BACKSTOP_IDS[Version.V3], poolMeta.id);
+      }
+      if (poolMeta.version === Version.V1 && poolMeta.wasmHash === POOL_WASM_V2) {
+        return await BackstopPoolV2.load(network, BACKSTOP_IDS[Version.V1], poolMeta.id);
+      }
+      return isV2Contracts(poolMeta.version)
+        ? await BackstopPoolV2.load(network, BACKSTOP_IDS[poolMeta.version], poolMeta.id)
+        : await BackstopPoolV1.load(network, BACKSTOP_IDS[Version.V1], poolMeta.id);
     },
   });
 }
@@ -851,22 +854,23 @@ export function useBackstopPoolUser(
             undefined
           ),
     queryFn: async () => {
-      if (walletAddress !== '' && poolMeta !== undefined) {
-        if (poolMeta.version === Version.V3) {
-          return await BackstopPoolUserV3.load(
-            network,
-            BACKSTOP_IDS[Version.V3],
-            poolMeta.id,
-            walletAddress
-          );
-        }
-        return await BackstopPoolUser.load(
+      if (walletAddress === '' || poolMeta === undefined) {
+        throw new Error('Pool metadata and wallet address are required');
+      }
+      if (poolMeta.version === Version.V3) {
+        return await BackstopPoolUserV3.load(
           network,
-          BACKSTOP_IDS[poolMeta.version],
+          BACKSTOP_IDS[Version.V3],
           poolMeta.id,
           walletAddress
         );
       }
+      return await BackstopPoolUser.load(
+        network,
+        BACKSTOP_IDS[poolMeta.version],
+        poolMeta.id,
+        walletAddress
+      );
     },
   });
 }
@@ -966,7 +970,7 @@ export function useAuctionEventsLongQuery(
   poolMeta: PoolMeta | undefined,
   enabled: boolean = true
 ): UseQueryResult<
-  { events: PoolV1Event[] | PoolV2Event[] | PoolV3Event[]; latestLedger: number },
+  { events: PoolV1Event[] | PoolV2Event[] | PoolV3Event[]; latestLedger: number } | undefined,
   Error
 > {
   const { network } = useSettings();
@@ -1009,7 +1013,7 @@ export function useAuctionEventsShortQuery(
   lastLedgerFetched: number,
   enabled: boolean = true
 ): UseQueryResult<
-  { events: PoolV1Event[] | PoolV2Event[] | PoolV3Event[]; latestLedger: number },
+  { events: PoolV1Event[] | PoolV2Event[] | PoolV3Event[]; latestLedger: number } | undefined,
   Error
 > {
   const { network } = useSettings();
@@ -1053,7 +1057,7 @@ export function useSimulateOperation<T>(
       if (walletAddress === '') {
         throw new Error('No wallet address');
       }
-      let operation = xdr.Operation.fromXDR(operation_str, 'base64');
+      let operation = xdr.Operation.fromXdr(operation_str, 'base64');
       const stellarRpc = new rpc.Server(network.rpc, network.opts);
       const account = new Account(walletAddress, '123');
       const tx_builder = new TransactionBuilder(account, {
@@ -1172,16 +1176,16 @@ function createTokenMetadataQuery(
 }
 
 const AUCTION_EVENT_FILTERS = [
-  [xdr.ScVal.scvSymbol('fill_auction').toXDR('base64'), '*', '*'],
-  [xdr.ScVal.scvSymbol('delete_liquidation_auction').toXDR('base64'), '*'],
-  [xdr.ScVal.scvSymbol('new_liquidation_auction').toXDR('base64'), '*'],
-  [xdr.ScVal.scvSymbol('new_auction').toXDR('base64'), '*'],
-  [xdr.ScVal.scvSymbol('delete_liquidation_auction').toXDR('base64'), '*'],
+  [xdr.ScVal.scvSymbol('fill_auction').toXdr('base64'), '*', '*'],
+  [xdr.ScVal.scvSymbol('delete_liquidation_auction').toXdr('base64'), '*'],
+  [xdr.ScVal.scvSymbol('new_liquidation_auction').toXdr('base64'), '*'],
+  [xdr.ScVal.scvSymbol('new_auction').toXdr('base64'), '*'],
+  [xdr.ScVal.scvSymbol('delete_liquidation_auction').toXdr('base64'), '*'],
 ];
 const AUCTION_EVENT_FILTERS_V2 = [
-  [xdr.ScVal.scvSymbol('new_auction').toXDR('base64'), '*', '*'],
-  [xdr.ScVal.scvSymbol('fill_auction').toXDR('base64'), '*', '*'],
-  [xdr.ScVal.scvSymbol('delete_auction').toXDR('base64'), '*', '*'],
+  [xdr.ScVal.scvSymbol('new_auction').toXdr('base64'), '*', '*'],
+  [xdr.ScVal.scvSymbol('fill_auction').toXdr('base64'), '*', '*'],
+  [xdr.ScVal.scvSymbol('delete_auction').toXdr('base64'), '*', '*'],
 ];
 
 /**

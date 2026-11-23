@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  SDK_COMMIT: 66fae2ef953e2855521048219d4309817e947ba2
+  SDK_COMMIT: 49dce25dfc0ba51dd048e57d06002460c0a826e0
   RELEASE_TAG: ${{ github.ref_name }}
 
 jobs:

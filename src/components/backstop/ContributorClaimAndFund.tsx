@@ -40,7 +40,7 @@ export const ContributorClaimAndFund: React.FC = () => {
   const showTrustlineAction = hasClaimable && requiresBlntTrustline;
   const claimOperation =
     BLNT_LOCKUP_BACKFILL_ID !== '' && isOwner
-      ? buildClaimAndFundOperation(BLNT_LOCKUP_BACKFILL_ID).toXDR('base64')
+      ? buildClaimAndFundOperation(BLNT_LOCKUP_BACKFILL_ID).toXdr('base64')
       : '';
   const { data: claimSimulation, refetch: refetchClaimSimulation } = useSimulateOperation(
     claimOperation,

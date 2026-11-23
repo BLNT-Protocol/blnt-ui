@@ -155,7 +155,7 @@ const LegacyBackstop: React.FC<{ poolMeta: PoolMeta; safePoolId: string }> = ({
             minLPTokenAmount: BigInt(0),
             user: backstop.id,
           })
-          .toXDR('base64')
+          .toXdr('base64')
       : undefined;
 
   const { data: mintSimResult, refetch: refetchMintSim } = useSimulateOperation(
@@ -171,7 +171,7 @@ const LegacyBackstop: React.FC<{ poolMeta: PoolMeta; safePoolId: string }> = ({
     );
   } else if (mintSimResult && rpc.Api.isSimulationSuccess(mintSimResult)) {
     const result = parseResult(mintSimResult, (xdrString: string) => {
-      return scValToBigInt(xdr.ScVal.fromXDR(xdrString, 'base64'));
+      return scValToBigInt(xdr.ScVal.fromXdr(xdrString, 'base64'));
     });
     lpTokenEmissions = result === undefined ? 0 : FixedMath.toFloat(result, 7);
   }

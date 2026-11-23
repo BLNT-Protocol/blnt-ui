@@ -35,7 +35,7 @@ export const BackfillLockupEmissions: React.FC = () => {
   const showTrustlineAction = hasClaimable && requiresBlntTrustline;
   const claimOperation =
     BLNT_LOCKUP_BACKFILL_ID !== '' && walletAddress !== '' && claim !== null
-      ? buildClaimLockupBackfillOperation(BLNT_LOCKUP_BACKFILL_ID, walletAddress).toXDR('base64')
+      ? buildClaimLockupBackfillOperation(BLNT_LOCKUP_BACKFILL_ID, walletAddress).toXdr('base64')
       : '';
   const { data: claimSimulation, refetch: refetchClaimSimulation } = useSimulateOperation(
     claimOperation,

@@ -304,18 +304,23 @@ export async function loadBackstopManagerState(
     new xdr.LedgerKeyContractData({
       contract: Address.fromString(managerId).toScAddress(),
       key: xdr.ScVal.scvLedgerKeyContractInstance(),
-      durability: xdr.ContractDataDurability.persistent(),
+      durability: xdr.ContractDataDurability.persistent,
     })
   );
   const instanceResponse = await stellarRpc.getLedgerEntries(instanceKey);
-  const actualWasmHash = instanceResponse.entries[0]?.val
-    .contractData()
-    .val()
-    .instance()
-    .executable()
-    .wasmHash()
-    .toString('hex')
-    .toLowerCase();
+  const instanceEntry = instanceResponse.entries[0];
+  const contractData =
+    instanceEntry === undefined
+      ? undefined
+      : xdr.expectUnionVariant(instanceEntry.val, 'contractData').contractData;
+  const contractInstance =
+    contractData === undefined
+      ? undefined
+      : xdr.expectUnionVariant(contractData.val, 'scvContractInstance').instance;
+  const actualWasmHash =
+    contractInstance?.executable.type === 'contractExecutableWasm'
+      ? contractInstance.executable.wasmHash.toString().toLowerCase()
+      : undefined;
   if (
     EXPECTED_MANAGER_WASM_HASH === '' ||
     actualWasmHash === undefined ||

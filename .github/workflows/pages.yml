@@ -29,6 +29,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: BLNT-Protocol/blnt-sdk-js
+          ref: 49dce25dfc0ba51dd048e57d06002460c0a826e0
           path: blnt-sdk-js
           persist-credentials: false
 

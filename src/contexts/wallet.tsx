@@ -62,14 +62,21 @@ const WALLET_CONNECT_ID = 'wallet_connect';
 const SOROBAN_INSTRUCTION_LEEWAY_PERCENT = BigInt(15);
 const PERCENT_SCALAR = BigInt(100);
 
+function bytesToHex(value: Uint8Array): string {
+  return Array.from(value, (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 // A simulation can use a same-ledger reserve shortcut while execution in a later
 // ledger must accrue interest. Keep enough instruction and fee headroom for the
 // more expensive path without changing the simulated footprint.
 function addSorobanInstructionLeeway(transaction: Transaction): Transaction {
-  const sorobanData = transaction.toEnvelope().v1().tx().ext().sorobanData();
-  const resources = sorobanData.resources();
-  const instructions = BigInt(resources.instructions());
-  const resourceFee = sorobanData.resourceFee().toBigInt();
+  const transactionExt = xdr.expectUnionVariant(
+    xdr.expectUnionVariant(transaction.toEnvelope(), 'envelopeTypeTx').v1.tx.ext,
+    'sorobanData'
+  );
+  const sorobanData = transactionExt.sorobanData;
+  const instructions = BigInt(sorobanData.resources.instructions);
+  const resourceFee = sorobanData.resourceFee;
   const totalFee = BigInt(transaction.fee);
 
   if (resourceFee > totalFee) {
@@ -87,12 +94,20 @@ function addSorobanInstructionLeeway(transaction: Transaction): Transaction {
       BigInt(1)) /
     PERCENT_SCALAR;
 
-  resources.instructions(Number(paddedInstructions));
-  sorobanData.resourceFee(xdr.Int64.fromString(paddedResourceFee.toString()));
+  const paddedSorobanData = new xdr.SorobanTransactionData({
+    ext: sorobanData.ext,
+    resources: new xdr.SorobanResources({
+      footprint: sorobanData.resources.footprint,
+      instructions: Number(paddedInstructions),
+      diskReadBytes: sorobanData.resources.diskReadBytes,
+      writeBytes: sorobanData.resources.writeBytes,
+    }),
+    resourceFee: paddedResourceFee,
+  });
 
   return TransactionBuilder.cloneFrom(transaction, {
     fee: (totalFee - resourceFee).toString(),
-    sorobanData,
+    sorobanData: paddedSorobanData,
   }).build();
 }
 
@@ -489,7 +504,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       .setSorobanData(sim.restorePreamble.transactionData.build())
       .addOperation(Operation.restoreFootprint({}))
       .build();
-    let signed_restore_tx = new Transaction(await sign(restore_tx.toXDR()), network.passphrase);
+    let signed_restore_tx = new Transaction(await sign(restore_tx.toXdr()), network.passphrase);
     setTxType(TxType.PREREQ);
     await sendTransaction(signed_restore_tx);
   }
@@ -527,7 +542,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       return false;
     }
 
-    let hash = transaction.hash().toString('hex');
+    let hash = bytesToHex(transaction.hash());
     setTxHash(hash);
     if (get_tx_response.status === 'SUCCESS') {
       console.log('Successfully submitted transaction: ', hash);
@@ -590,7 +605,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       }
       const assembled_tx = rpc.assembleTransaction(transaction, simResponse).build();
       const padded_tx = addSorobanInstructionLeeway(assembled_tx);
-      const extended_tx = addReflectorEntries(padded_tx.toXDR());
+      const extended_tx = addReflectorEntries(padded_tx.toXdr());
       console.log('Sending transaction to wallet: ', extended_tx);
       const signedTx = await sign(extended_tx);
       const tx = new Transaction(signedTx, network.passphrase);
@@ -628,7 +643,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         poolMeta.version === Version.V3
           ? new PoolContractV3(poolMeta.id)
           : new PoolContractV2(poolMeta.id);
-      const operation = xdr.Operation.fromXDR(pool.submit(submitArgs), 'base64');
+      const operation = xdr.Operation.fromXdr(pool.submit(submitArgs), 'base64');
       if (sim) {
         return await simulateOperation(operation);
       }
@@ -655,7 +670,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         poolMeta.version === Version.V3
           ? new PoolContractV3(poolMeta.id)
           : new PoolContractV2(poolMeta.id);
-      const operation = xdr.Operation.fromXDR(pool.claim(claimArgs), 'base64');
+      const operation = xdr.Operation.fromXdr(pool.claim(claimArgs), 'base64');
       if (sim) {
         return await simulateOperation(operation);
       }
@@ -690,7 +705,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
           : new BackstopContractV1(BACKSTOP_IDS[Version.V1]).deposit(
               args as PoolBackstopActionArgs
             );
-      const operation = xdr.Operation.fromXDR(operationString, 'base64');
+      const operation = xdr.Operation.fromXdr(operationString, 'base64');
       if (sim) {
         return await simulateOperation(operation);
       }
@@ -728,7 +743,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
           : new BackstopContractV1(BACKSTOP_IDS[Version.V1]).withdraw(
               args as PoolBackstopActionArgs
             );
-      const operation = xdr.Operation.fromXDR(operationString, 'base64');
+      const operation = xdr.Operation.fromXdr(operationString, 'base64');
       if (sim) {
         return await simulateOperation(operation);
       }
@@ -767,7 +782,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
           : new BackstopContractV1(BACKSTOP_IDS[Version.V1]).queueWithdrawal(
               args as PoolBackstopActionArgs
             );
-      const operation = xdr.Operation.fromXDR(operationString, 'base64');
+      const operation = xdr.Operation.fromXdr(operationString, 'base64');
       if (sim) {
         return await simulateOperation(operation);
       }
@@ -805,7 +820,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
           : new BackstopContractV1(BACKSTOP_IDS[Version.V1]).dequeueWithdrawal(
               args as PoolBackstopActionArgs
             );
-      const operation = xdr.Operation.fromXDR(operationString, 'base64');
+      const operation = xdr.Operation.fromXdr(operationString, 'base64');
       if (sim) {
         return await simulateOperation(operation);
       }
@@ -846,9 +861,9 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         );
       }
       if (sim) {
-        return await simulateOperation(xdr.Operation.fromXDR(operation, 'base64'));
+        return await simulateOperation(xdr.Operation.fromXdr(operation, 'base64'));
       }
-      await invokeSorobanOperation(xdr.Operation.fromXDR(operation, 'base64'));
+      await invokeSorobanOperation(xdr.Operation.fromXdr(operation, 'base64'));
       if (typeof claimArgs.pool_addresses[0] === 'string') {
         cleanBackstopPoolCache(claimArgs.pool_addresses[0]);
       } else {
@@ -1060,7 +1075,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
           tx_builder.addOperation(trustlineOperation);
         }
         const transaction = tx_builder.build();
-        const signedTx = await sign(transaction.toXDR());
+        const signedTx = await sign(transaction.toXdr());
         const tx = new Transaction(signedTx, network.passphrase);
         setTxType(TxType.PREREQ);
         const result = await sendTransaction(tx);

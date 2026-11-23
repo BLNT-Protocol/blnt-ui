@@ -40,7 +40,7 @@ export const BackfillEmissions: React.FC = () => {
   const showTrustlineAction = hasClaimable && requiresBlntTrustline;
   const claimOperation =
     BLNT_BACKFILL_ID !== '' && walletAddress !== ''
-      ? buildClaimBackfillOperation(BLNT_BACKFILL_ID, walletAddress).toXDR('base64')
+      ? buildClaimBackfillOperation(BLNT_BACKFILL_ID, walletAddress).toXdr('base64')
       : '';
   const { data: claimSimulation, refetch: refetchClaimSimulation } = useSimulateOperation(
     claimOperation,
