@@ -42,9 +42,21 @@ import { useSettings } from './settings';
 
 type WalletKit = typeof import('@creit.tech/stellar-wallets-kit').StellarWalletsKit;
 type WalletKitNetwork = import('@creit.tech/stellar-wallets-kit').Networks;
-type WalletConnectModuleInstance = import('@creit.tech/stellar-wallets-kit').ModuleInterface & {
+type WalletModule = import('@creit.tech/stellar-wallets-kit').ModuleInterface;
+type WalletModuleConstructor = new () => WalletModule;
+type WalletConnectModuleInstance = WalletModule & {
   disconnect(): Promise<void>;
 };
+type WalletConnectModuleConstructor = new (options: {
+  projectId: string;
+  metadata: {
+    name: string;
+    description: string;
+    url: string;
+    icons: string[];
+  };
+  allowedChains: string[];
+}) => WalletConnectModuleInstance;
 type BackstopActionArgs = PoolBackstopActionArgs | TierBackstopActionArgsV3;
 const POOL_WASM_V2 = 'a41fc53d6753b6c04eb15b021c55052366a4c8e0e21bc72700f461264ec1350e';
 
@@ -243,15 +255,15 @@ async function getWalletKit(): Promise<WalletKit> {
 
 async function initializeWalletKit(): Promise<WalletKit> {
   const [
-    { Networks: WalletKitNetworks, StellarWalletsKit },
-    { AlbedoModule },
-    { FreighterModule },
-    { HanaModule },
-    { HotWalletModule },
-    { LedgerModule },
-    { LobstrModule },
-    { WalletConnectModule, WalletConnectTargetChain },
-    { XBULL_ID, xBullModule },
+    walletKitExports,
+    albedoExports,
+    freighterExports,
+    hanaExports,
+    hotWalletExports,
+    ledgerExports,
+    lobstrExports,
+    walletConnectExports,
+    xBullExports,
   ] = await Promise.all([
     import('@creit.tech/stellar-wallets-kit'),
     import('@creit.tech/stellar-wallets-kit/modules/albedo'),
@@ -263,6 +275,31 @@ async function initializeWalletKit(): Promise<WalletKit> {
     import('@creit.tech/stellar-wallets-kit/modules/wallet-connect'),
     import('@creit.tech/stellar-wallets-kit/modules/xbull'),
   ]);
+
+  const { Networks: WalletKitNetworks, StellarWalletsKit } = walletKitExports;
+  // Wallet-kit 2.7.1 ships declarations beside these ESM files but does not
+  // associate them with its subpath export map. Keep the cast at this package
+  // boundary while retaining the concrete module interfaces used below.
+  const { AlbedoModule } = albedoExports as unknown as {
+    AlbedoModule: WalletModuleConstructor;
+  };
+  const { FreighterModule } = freighterExports as unknown as {
+    FreighterModule: WalletModuleConstructor;
+  };
+  const { HanaModule } = hanaExports as unknown as { HanaModule: WalletModuleConstructor };
+  const { HotWalletModule } = hotWalletExports as unknown as {
+    HotWalletModule: WalletModuleConstructor;
+  };
+  const { LedgerModule } = ledgerExports as unknown as { LedgerModule: WalletModuleConstructor };
+  const { LobstrModule } = lobstrExports as unknown as { LobstrModule: WalletModuleConstructor };
+  const { WalletConnectModule, WalletConnectTargetChain } = walletConnectExports as unknown as {
+    WalletConnectModule: WalletConnectModuleConstructor;
+    WalletConnectTargetChain: { PUBLIC: string; TESTNET: string };
+  };
+  const { XBULL_ID, xBullModule } = xBullExports as unknown as {
+    XBULL_ID: string;
+    xBullModule: WalletModuleConstructor;
+  };
 
   if (!walletConnectModule) {
     walletConnectModule = new WalletConnectModule({
@@ -352,7 +389,6 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         }, 750);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoConnect]);
 
   function setFailureMessage(message: string | undefined) {
