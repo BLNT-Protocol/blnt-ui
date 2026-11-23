@@ -86,7 +86,7 @@ export const BackfillSwap: React.FC = () => {
           BLNT_BACKFILL_ID,
           walletAddress,
           debouncedRequestedAmount
-        ).toXDR('base64')
+        ).toXdr('base64')
       : '';
   const {
     data: simulation,

@@ -250,7 +250,7 @@ const PositionCard: React.FC<{ state: BackstopManagerState; position: ManagerPos
 
   // Claim: simulate with no minimum to see what it would mint
   const claimSimOp = can('claim')
-    ? managerOps.claim(state.id, walletAddress, p, BigInt(0)).toXDR('base64')
+    ? managerOps.claim(state.id, walletAddress, p, BigInt(0)).toXdr('base64')
     : '';
   const {
     data: claimSim,

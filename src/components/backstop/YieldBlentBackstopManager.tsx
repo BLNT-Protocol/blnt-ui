@@ -33,7 +33,7 @@ export const YieldBlentBackstopManager: React.FC = () => {
   const hasBlnt = state !== undefined && state.blntBalance > BigInt(0);
   const operation =
     BLNT_BACKSTOP_MANAGER_HELPER_ID !== '' && isOwner
-      ? buildBackstopManagerDepositAndClaimOperation(BLNT_BACKSTOP_MANAGER_HELPER_ID).toXDR(
+      ? buildBackstopManagerDepositAndClaimOperation(BLNT_BACKSTOP_MANAGER_HELPER_ID).toXdr(
           'base64'
         )
       : '';
