@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 
 import { Theme } from '@emotion/react';
 import { SxProps } from '@mui/material';
@@ -19,21 +19,32 @@ export const TokenIcon: React.FC<TokenIconProps> = ({ assetId, ...props }) => {
   const symbol = stellarTokenMetadata?.symbol || toCompactAddress(assetId);
   const fallbackImage = getReserveTokenIcon(assetId);
   const imageCandidates = [stellarTokenMetadata?.image, fallbackImage].filter(
-    (image, index, images): image is string => image !== undefined && images.indexOf(image) === index
+    (image, index, images): image is string =>
+      image !== undefined && images.indexOf(image) === index
   );
-  const [failedImages, setFailedImages] = useState<string[]>([]);
+  const candidateKey = imageCandidates.join('\u0000');
+  const [failedImageState, setFailedImageState] = useState<{
+    candidateKey: string;
+    images: string[];
+  }>({ candidateKey, images: [] });
+  const failedImages =
+    failedImageState.candidateKey === candidateKey ? failedImageState.images : [];
   const image = imageCandidates.find((candidate) => !failedImages.includes(candidate));
-
-  useEffect(() => {
-    setFailedImages([]);
-  }, [assetId, stellarTokenMetadata?.image, fallbackImage]);
 
   if (image) {
     return (
       <Icon
         src={image}
         alt={symbol}
-        onError={() => setFailedImages((failed) => [...failed, image])}
+        onError={() =>
+          setFailedImageState((current) => {
+            const images = current.candidateKey === candidateKey ? current.images : [];
+            return {
+              candidateKey,
+              images: images.includes(image) ? images : [...images, image],
+            };
+          })
+        }
         {...props}
       />
     );

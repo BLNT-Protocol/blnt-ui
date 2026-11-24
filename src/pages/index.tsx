@@ -46,12 +46,12 @@ const Markets: NextPage = () => {
       <SectionBase type="alt" sx={{ margin: '6px', padding: '12px' }}>
         <Typography component="p" variant="body2">
           BLNT Trade is the interface for BLNT V3, a Blend-derived lending protocol on Stellar
-          designed for permissionless lending and real-world assets. Explore the Fixed Pool V3
-          and YieldBlent markets. V1/V2/V2.1 are Blend markets.
+          designed for permissionless lending and real-world assets. Explore the Fixed Pool V3 and
+          YieldBlent markets. V1/V2/V2.1 are Blend markets.
         </Typography>
       </SectionBase>
       <Divider />
-      <MarketsList version={version} />
+      <MarketsList key={version} version={version} />
     </>
   );
 };

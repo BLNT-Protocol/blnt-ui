@@ -1,12 +1,13 @@
 import { FixedMath } from '@blend-capital/blend-sdk';
 import { Tooltip } from '@mui/material';
+import type { ReactElement } from 'react';
 import { toBalance } from '../../utils/formatter';
 
 export function toUSDBalance(
   price: number | undefined,
   amount: number | bigint | undefined,
   decimals: number = 7
-): string | JSX.Element {
+): string | ReactElement {
   if (amount == undefined) {
     return '$--';
   }

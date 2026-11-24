@@ -291,7 +291,7 @@ const BackstopToken: NextPage = () => {
 
       {showJoinPool ? (
         <BackstopJoinAnvil
-          key={tier ?? version}
+          key={`${poolMeta?.id ?? ''}-${tier ?? version}-${pairTokenId ?? ''}-${pairSymbol}`}
           tier={tier}
           version={version}
           poolMeta={poolMeta}

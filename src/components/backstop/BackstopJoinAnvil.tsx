@@ -3,7 +3,7 @@ import { LoopOutlined } from '@mui/icons-material';
 import { Box, Typography, useTheme } from '@mui/material';
 import { Asset, rpc, scValToBigInt, xdr } from '@stellar/stellar-sdk';
 import Image from 'next/image';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ViewType, useSettings } from '../../contexts';
 import { TxStatus, TxType, useWallet } from '../../contexts/wallet';
 import { useHorizonAccount, useManagedBackstopToken, useTokenBalance } from '../../hooks/api';
@@ -101,11 +101,6 @@ export const BackstopJoinAnvil: React.FC<{
       : lpBalance;
   const maxBLNDDeposit = backstopToken ? backstopToken.blnd / BigInt(3) - BigInt(1) : BigInt(0);
   const maxUSDCDeposit = backstopToken ? backstopToken.usdc / BigInt(3) - BigInt(1) : BigInt(0);
-
-  useEffect(() => {
-    setCurrentToken({ address: pairTokenId, symbol: pairSymbol });
-    setInput({ amount: '', slippage: '1' });
-  }, [pairSymbol, pairTokenId]);
 
   /** run function on each state change */
   useDebouncedState(input, RPC_DEBOUNCE_DELAY, txType, handleInputChange);

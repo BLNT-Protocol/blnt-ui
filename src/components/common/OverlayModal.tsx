@@ -11,12 +11,30 @@ export interface CloseableOverlayProps {
   handleCloseOverlay: () => void;
 }
 
+const DelayedOverlayModalText: React.FC<{
+  message: string;
+  handleCloseOverlay: () => void;
+}> = ({ message, handleCloseOverlay }) => {
+  const [allowReturn, setAllowReturn] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setAllowReturn(true), 6000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <OverlayModalText
+      message={message}
+      allowReturn={allowReturn}
+      handleCloseOverlay={handleCloseOverlay}
+    />
+  );
+};
+
 export const OverlayModal: React.FC = () => {
   const router = useRouter();
   const { lastPool } = useSettings();
   const { txStatus, txType, clearLastTx } = useWallet();
-
-  const [showReturnButton, setShowReturnButton] = useState(false);
 
   const display = txStatus !== TxStatus.NONE ? 'flex' : 'none';
 
@@ -52,22 +70,6 @@ export const OverlayModal: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    setShowReturnButton(false);
-    if (txStatus === TxStatus.BUILDING || txStatus === TxStatus.SIGNING) {
-      timer = setTimeout(() => {
-        setShowReturnButton(true);
-      }, 6000);
-    }
-
-    return () => {
-      if (timer) {
-        clearTimeout(timer);
-      }
-    };
-  }, [txStatus]);
-
   if (txStatus === TxStatus.NONE) {
     return <></>;
   }
@@ -90,16 +92,16 @@ export const OverlayModal: React.FC = () => {
       }}
     >
       {txStatus === TxStatus.BUILDING && (
-        <OverlayModalText
+        <DelayedOverlayModalText
+          key={TxStatus.BUILDING}
           message="Preparing your transaction..."
-          allowReturn={showReturnButton}
           handleCloseOverlay={handleReturn}
         />
       )}
       {txStatus === TxStatus.SIGNING && (
-        <OverlayModalText
+        <DelayedOverlayModalText
+          key={TxStatus.SIGNING}
           message="Please confirm the transaction in your wallet."
-          allowReturn={showReturnButton}
           handleCloseOverlay={handleReturn}
         />
       )}

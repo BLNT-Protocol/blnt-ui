@@ -16,6 +16,7 @@ import { useSettings, ViewType } from '../../contexts';
 import { TxStatus, TxType, useWallet } from '../../contexts/wallet';
 import { useBackstop, useBackstopPool, useBackstopPoolUser, usePoolMeta } from '../../hooks/api';
 import { RPC_DEBOUNCE_DELAY, useDebouncedState } from '../../hooks/debounce';
+import { useCurrentTimestamp } from '../../hooks/time';
 import { toBalance } from '../../utils/formatter';
 import { getErrorFromSim, SubmitError } from '../../utils/txSim';
 import { AnvilAlert } from '../common/AnvilAlert';
@@ -58,6 +59,24 @@ export const BackstopQueueAnvil: React.FC<PoolComponentProps> = ({ poolId }) => 
   const [sendingTx, setSendingTx] = useState<boolean>(false);
   const loading = isLoading || loadingEstimate;
   const decimals = 7;
+  const now = useCurrentTimestamp(60 * 1000);
+
+  const handleSubmitTransaction = async (sim: boolean) => {
+    if (connected && poolMeta && toQueueShares !== BigInt(0)) {
+      const depositArgs: PoolBackstopActionArgs = {
+        from: walletAddress,
+        pool_address: poolId,
+        amount: toQueueShares,
+      };
+      const response = await backstopQueueWithdrawal(poolMeta, depositArgs, sim);
+      if (response) {
+        setSimResponse(response);
+        if (rpc.Api.isSimulationSuccess(response)) {
+          setParsedSimResult(parseResult(response, BackstopContractV1.parsers.queueWithdrawal));
+        }
+      }
+    }
+  };
 
   useDebouncedState(toQueue, RPC_DEBOUNCE_DELAY, txType, async () => {
     setSimResponse(undefined);
@@ -129,23 +148,6 @@ export const BackstopQueueAnvil: React.FC<PoolComponentProps> = ({ poolId }) => 
     if (backstopUserData && backstopUserEst && backstopUserEst.tokens > 0) {
       setToQueue(backstopUserEst.tokens.toFixed(7));
       setToQueueShares(backstopUserData.balance.shares);
-    }
-  };
-
-  const handleSubmitTransaction = async (sim: boolean) => {
-    if (connected && poolMeta && toQueueShares !== BigInt(0)) {
-      let depositArgs: PoolBackstopActionArgs = {
-        from: walletAddress,
-        pool_address: poolId,
-        amount: toQueueShares,
-      };
-      let response = await backstopQueueWithdrawal(poolMeta, depositArgs, sim);
-      if (response) {
-        setSimResponse(response);
-        if (rpc.Api.isSimulationSuccess(response)) {
-          setParsedSimResult(parseResult(response, BackstopContractV1.parsers.queueWithdrawal));
-        }
-      }
     }
   };
 
@@ -259,12 +261,11 @@ export const BackstopQueueAnvil: React.FC<PoolComponentProps> = ({ poolId }) => 
               <Value
                 title="New queue expiration"
                 value={
-                  (parsedSimResult
-                    ? new Date(Number(parsedSimResult.exp) * 1000)
-                    : new Date(Date.now() + 21 * 24 * 60 * 60 * 1000)
-                  )
-                    .toISOString()
-                    .split('T')[0]
+                  parsedSimResult
+                    ? new Date(Number(parsedSimResult.exp) * 1000).toISOString().split('T')[0]
+                    : now === undefined
+                    ? 'Calculating...'
+                    : new Date((now + 21 * 24 * 60 * 60) * 1000).toISOString().split('T')[0]
                 }
               />
 

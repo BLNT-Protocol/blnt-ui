@@ -167,12 +167,16 @@ export const BackfillSwap: React.FC = () => {
   useEffect(() => {
     if (!submitted) return;
     if (txStatus === TxStatus.SUCCESS && txType === TxType.CONTRACT) {
-      setSubmitted(false);
-      setAmount('');
       void Promise.all([refetchAccount(), refetchSwapState()]);
-    } else if (txStatus === TxStatus.FAIL) {
-      setSubmitted(false);
+      const timer = setTimeout(() => {
+        setSubmitted(false);
+        setAmount('');
+      }, 0);
+      return () => clearTimeout(timer);
     }
+    if (txStatus !== TxStatus.FAIL) return;
+    const timer = setTimeout(() => setSubmitted(false), 0);
+    return () => clearTimeout(timer);
   }, [refetchAccount, refetchSwapState, submitted, txStatus, txType]);
 
   const handleAction = async () => {

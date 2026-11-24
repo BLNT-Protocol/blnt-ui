@@ -1,6 +1,6 @@
-import { createTheme, Theme } from '@mui/material';
+import { createTheme, type PaletteColorOptions, type Theme } from '@mui/material/styles';
 
-declare module '@mui/material/styles/createPalette' {
+declare module '@mui/material/styles' {
   interface SimplePaletteColorOptions {
     opaque?: string;
   }

@@ -25,6 +25,7 @@ import {
   useTokenBalance,
   useSimulateOperation,
 } from '../../hooks/api';
+import { useCurrentTimestamp } from '../../hooks/time';
 import { Version } from '../../utils/version';
 import { RPC_DEBOUNCE_DELAY, useDebouncedState } from '../../hooks/debounce';
 import { PoolMeta } from '../../hooks/types';
@@ -63,13 +64,13 @@ export const BackstopV3QueueItem: React.FC<{
   const theme = useTheme();
   const { connected, walletAddress, backstopDequeueWithdrawal, backstopWithdraw, restore } =
     useWallet();
-  const [now, setNow] = useState(Math.floor(Date.now() / 1000));
+  const now = useCurrentTimestamp();
   const {
     data: poolPermissions,
     isError: isPermissionError,
     isLoading: isPermissionLoading,
   } = usePoolPermissions(poolMeta);
-  const unlocked = q4w.exp === BigInt(0) || q4w.exp <= BigInt(now);
+  const unlocked = q4w.exp === BigInt(0) || (now !== undefined && q4w.exp <= BigInt(now));
   const dequeuePermission = getPoolPermissionError(
     poolMeta.version === Version.V3 && poolMeta.accessController !== undefined,
     poolPermissions,
@@ -100,14 +101,9 @@ export const BackstopV3QueueItem: React.FC<{
   } = useSimulateOperation(operation, operation !== '');
   const isRestore = simulation !== undefined && rpc.Api.isSimulationRestore(simulation);
   const isError = simulation !== undefined && rpc.Api.isSimulationError(simulation);
-  const timeLeft = Math.max(0, Number(q4w.exp) - now);
-  const timeWaitedPercentage = Math.min(1, Math.max(0, 1 - timeLeft / (17 * 24 * 60 * 60)));
-
-  useEffect(() => {
-    if (unlocked) return;
-    const interval = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000);
-    return () => clearInterval(interval);
-  }, [unlocked]);
+  const timeLeft = now === undefined ? undefined : Math.max(0, Number(q4w.exp) - now);
+  const timeWaitedPercentage =
+    timeLeft === undefined ? 0 : Math.min(1, Math.max(0, 1 - timeLeft / (17 * 24 * 60 * 60)));
 
   const act = async () => {
     if (isRestore) {
@@ -123,7 +119,7 @@ export const BackstopV3QueueItem: React.FC<{
   return (
     <Row>
       <Box sx={{ margin: '6px', padding: '6px', display: 'flex', alignItems: 'center' }}>
-        {timeLeft > 0 ? (
+        {timeLeft === undefined || timeLeft > 0 ? (
           <Box
             sx={{
               position: 'relative',
@@ -172,7 +168,11 @@ export const BackstopV3QueueItem: React.FC<{
             </Typography>
           </Box>
           <Typography variant="h4" sx={{ marginRight: '6px' }}>
-            {timeLeft > 0 ? toTimeSpan(timeLeft) : 'Unlocked'}
+            {timeLeft === undefined
+              ? 'Loading...'
+              : timeLeft > 0
+              ? toTimeSpan(timeLeft)
+              : 'Unlocked'}
           </Typography>
         </Box>
       </Box>
@@ -181,6 +181,7 @@ export const BackstopV3QueueItem: React.FC<{
         palette={theme.palette.positive}
         disabled={
           !connected ||
+          timeLeft === undefined ||
           isLoading ||
           (!isRestore &&
             (isError || (!unlocked && (!canDequeue || dequeuePermission !== undefined))))
@@ -233,7 +234,8 @@ export const BackstopV3Action: React.FC<{
   const queue = user?.balance(tier).q4w ?? [];
   const queuedShares = queue.reduce((total, item) => total + item.amount, BigInt(0));
   const queuedTokens = tierPool?.sharesToTokens(queuedShares) ?? BigInt(0);
-  const queueNow = BigInt(Math.floor(Date.now() / 1000));
+  const now = useCurrentTimestamp();
+  const queueNow = BigInt(now ?? 0);
   const unlockedQueueShares = queue.reduce(
     (total, item) => (item.exp <= queueNow ? total + item.amount : total),
     BigInt(0)
@@ -290,17 +292,13 @@ export const BackstopV3Action: React.FC<{
   });
 
   useEffect(() => {
-    setAmount('');
-    setSimulation(undefined);
-    setLoadingEstimate(false);
-  }, [tier, type]);
-
-  useEffect(() => {
-    if (txStatus === TxStatus.SUCCESS && txType === TxType.CONTRACT) {
+    if (txStatus !== TxStatus.SUCCESS || txType !== TxType.CONTRACT) return;
+    void Promise.all([refetchPool(), refetchUser()]);
+    const timer = setTimeout(() => {
       setAmount('');
       setSimulation(undefined);
-      void Promise.all([refetchPool(), refetchUser()]);
-    }
+    }, 0);
+    return () => clearTimeout(timer);
   }, [refetchPool, refetchUser, txStatus, txType]);
 
   const { isSubmitDisabled, isMaxDisabled, reason, disabledType, isError, extraContent } = useMemo(

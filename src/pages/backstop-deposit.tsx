@@ -45,6 +45,7 @@ const BackstopDeposit: NextPage = () => {
   if (poolMeta?.version === Version.V3) {
     return (
       <BackstopV3Action
+        key={`${poolMeta.id}-${parseBackstopTier(router.query.tier)}-deposit`}
         poolMeta={poolMeta}
         tier={parseBackstopTier(router.query.tier)}
         type="deposit"

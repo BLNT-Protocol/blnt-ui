@@ -1,16 +1,12 @@
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { Box, BoxProps, Typography } from '@mui/material';
 import { Networks } from '@stellar/stellar-sdk';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSettings } from '../../contexts';
 import { useBackstop } from '../../hooks/api';
 import theme from '../../theme';
 import { ReserveTokenMetadata } from '../../utils/token';
-import {
-  MAINNET_V1_REWARD_ZONE,
-  MAINNET_V2_REWARD_ZONE,
-  Version,
-} from '../../utils/version';
+import { MAINNET_V1_REWARD_ZONE, MAINNET_V2_REWARD_ZONE, Version } from '../../utils/version';
 import { Row } from '../common/Row';
 import { Section, SectionSize } from '../common/Section';
 import { MarketCard } from './MarketCard';
@@ -35,7 +31,6 @@ export const MarketsList: React.FC<MarketListProps> = ({ version }) => {
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [marketsData, setMarketsData] = useState<Record<string, MarketData>>({});
-  const [sortedPoolIds, setSortedPoolIds] = useState<string[]>([]);
   const [filters, setFilters] = useState<MarketFilters>({
     search: '',
     sortBy: 'poolTvl',
@@ -72,12 +67,11 @@ export const MarketsList: React.FC<MarketListProps> = ({ version }) => {
     [visiblePoolIds, blockedPools]
   );
 
-  useEffect(() => {
+  const sortedPoolIds = useMemo(() => {
     const loadedMarkets = Object.values(marketsData);
 
     if (loadedMarkets.length === 0) {
-      setSortedPoolIds(safeRewardZone);
-      return;
+      return safeRewardZone;
     }
 
     // Apply search filter if present
@@ -112,11 +106,7 @@ export const MarketsList: React.FC<MarketListProps> = ({ version }) => {
 
     // Add any pools that haven't loaded yet to the end of the list
     const poolsWithNoData = safeRewardZone.filter((poolId) => !marketsData[poolId]);
-    // Only update state if the result is different
-    const newSortedIds = [...sortedIds, ...poolsWithNoData];
-    if (JSON.stringify(newSortedIds) !== JSON.stringify(sortedPoolIds)) {
-      setSortedPoolIds(newSortedIds);
-    }
+    return [...sortedIds, ...poolsWithNoData];
   }, [
     marketsData,
     safeRewardZone,
@@ -125,14 +115,6 @@ export const MarketsList: React.FC<MarketListProps> = ({ version }) => {
     filters.search,
     filters.selectedAssets,
   ]);
-
-  // Reset all state related to market data when version changes
-  useEffect(() => {
-    setMarketsData({});
-    setSortedPoolIds([]);
-    setCurrentIndex(0);
-    handleFilterChange('selectedAssets', []);
-  }, [version]);
 
   // Handle pool data loading
   function handlePoolLoaded(
