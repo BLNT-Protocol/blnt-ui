@@ -51,7 +51,7 @@ const Markets: NextPage = () => {
         </Typography>
       </SectionBase>
       <Divider />
-      <MarketsList key={version} version={version} />
+      <MarketsList version={version} />
     </>
   );
 };

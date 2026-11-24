@@ -25,18 +25,26 @@ export interface MarketListProps extends BoxProps {
   version: Version | undefined;
 }
 
-export const MarketsList: React.FC<MarketListProps> = ({ version }) => {
+type PersistentMarketFilters = Omit<MarketFilters, 'selectedAssets'>;
+
+interface VersionMarketsListProps {
+  version: Version | undefined;
+  persistentFilters: PersistentMarketFilters;
+  onPersistentFilterChange: (key: keyof MarketFilters, value: any) => void;
+}
+
+const VersionMarketsList: React.FC<VersionMarketsListProps> = ({
+  version,
+  persistentFilters,
+  onPersistentFilterChange,
+}) => {
   const { blockedPools, configuredPools } = useSettings();
   const { data: backstop } = useBackstop(version);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [marketsData, setMarketsData] = useState<Record<string, MarketData>>({});
-  const [filters, setFilters] = useState<MarketFilters>({
-    search: '',
-    sortBy: 'poolTvl',
-    sortDirection: 'desc',
-    selectedAssets: [],
-  });
+  const [selectedAssets, setSelectedAssets] = useState<string[]>([]);
+  const filters: MarketFilters = { ...persistentFilters, selectedAssets };
 
   const availableAssets = Object.values(marketsData)
     .flatMap((market) => market.tokenMetadataList.map((token) => token.assetId))
@@ -156,7 +164,11 @@ export const MarketsList: React.FC<MarketListProps> = ({ version }) => {
 
   // Handle filter changes from MarketFilter component
   const handleFilterChange = (key: keyof MarketFilters, value: any) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
+    if (key === 'selectedAssets') {
+      setSelectedAssets(value as string[]);
+    } else {
+      onPersistentFilterChange(key, value);
+    }
   };
 
   // Determine how many pools to display based on the current index
@@ -244,5 +256,27 @@ export const MarketsList: React.FC<MarketListProps> = ({ version }) => {
         <MarketCard key={poolId} poolId={poolId} index={index} onLoaded={handlePoolLoaded} />
       ))}
     </Box>
+  );
+};
+
+export const MarketsList: React.FC<MarketListProps> = ({ version }) => {
+  const [persistentFilters, setPersistentFilters] = useState<PersistentMarketFilters>({
+    search: '',
+    sortBy: 'poolTvl',
+    sortDirection: 'desc',
+  });
+
+  const handlePersistentFilterChange = (key: keyof MarketFilters, value: any) => {
+    if (key === 'selectedAssets') return;
+    setPersistentFilters((current) => ({ ...current, [key]: value }));
+  };
+
+  return (
+    <VersionMarketsList
+      key={version ?? 'none'}
+      version={version}
+      persistentFilters={persistentFilters}
+      onPersistentFilterChange={handlePersistentFilterChange}
+    />
   );
 };

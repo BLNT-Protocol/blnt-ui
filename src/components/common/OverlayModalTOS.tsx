@@ -31,7 +31,11 @@ export const OverlayModalTOS: React.FC = () => {
     getServerTosVersionSnapshot
   );
   const [acknowledged, setAcknowledged] = useState(false);
-  const showTosModal = acknowledged ? false : hasAcceptedStoredVersion === false;
+  const showTosModal = acknowledged
+    ? false
+    : hasAcceptedStoredVersion === undefined
+    ? undefined
+    : !hasAcceptedStoredVersion;
   const handleAcknowledge = () => {
     localStorage.setItem(TOS_STORAGE_KEY, TOS_VERSION);
     setAcknowledged(true);

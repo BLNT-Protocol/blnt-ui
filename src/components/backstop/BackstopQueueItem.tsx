@@ -5,7 +5,7 @@ import { rpc } from '@stellar/stellar-sdk';
 import { useSettings, ViewType } from '../../contexts';
 import { useWallet } from '../../contexts/wallet';
 import { usePoolMeta, useSimulateOperation } from '../../hooks/api';
-import { useCurrentTimestamp } from '../../hooks/time';
+import { useCountdownTimestamp } from '../../hooks/time';
 import theme from '../../theme';
 import { toBalance, toTimeSpan } from '../../utils/formatter';
 import { BACKSTOP_IDS, isV2Contracts, Version } from '../../utils/version';
@@ -50,7 +50,7 @@ export const BackstopQueueItem: React.FC<BackstopQueueItemProps> = ({
 
   const TOTAL_QUEUE_TIME_SECONDS = version === Version.V1 ? 21 * 24 * 60 * 60 : 17 * 24 * 60 * 60;
 
-  const now = useCurrentTimestamp();
+  const now = useCountdownTimestamp(Number(q4w.exp));
   const timeLeft =
     q4w.exp === BigInt(0) ? 0 : now === undefined ? undefined : Math.max(0, Number(q4w.exp) - now);
   const timeWaitedPercentage =
