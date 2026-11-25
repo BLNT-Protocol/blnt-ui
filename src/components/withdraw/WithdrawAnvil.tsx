@@ -10,7 +10,7 @@ import {
 import { Box, Typography, useTheme } from '@mui/material';
 import { rpc } from '@stellar/stellar-sdk';
 import Image from 'next/image';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSettings, ViewType } from '../../contexts';
 import { TxStatus, TxType, useWallet } from '../../contexts/wallet';
 import {
@@ -110,10 +110,6 @@ export const WithdrawAnvil: React.FC<WithdrawAnvilProps> = ({ poolId, assetId, i
     }
     setLoadingEstimate(false);
   });
-
-  useEffect(() => {
-    setToWithdraw('');
-  }, [isCollateral]);
 
   async function handleAddAssetTrustline() {
     if (connected && tokenMetadata?.asset) {

@@ -3,6 +3,7 @@
  */
 const nextConfig = {
   agentRules: false,
+  transpilePackages: ['@mui/x-charts', '@mui/x-internals'],
   reactStrictMode: true,
   images: {
     unoptimized: true,

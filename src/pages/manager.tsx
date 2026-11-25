@@ -18,6 +18,7 @@ import {
   useWalletFundingReserves,
   useWalletTokenBalances,
 } from '../hooks/backstopManager';
+import { useCurrentTimestamp } from '../hooks/time';
 import {
   ACTION_SCOPE,
   ASSET_LABEL,
@@ -195,7 +196,7 @@ const PositionCard: React.FC<{ state: BackstopManagerState; position: ManagerPos
   const { walletAddress, connected, backstopManagerInvoke, restore } = useWallet();
   const can = (action: ManagerAction) => connected && canPerform(state, walletAddress, action);
   const lp = p.lpToken;
-  const now = Math.floor(Date.now() / 1000);
+  const now = useCurrentTimestamp();
 
   const [fundToken, setFundToken] = useState(0);
   const [fundAmount, setFundAmount] = useState('');
@@ -271,7 +272,7 @@ const PositionCard: React.FC<{ state: BackstopManagerState; position: ManagerPos
   const queue = parseAmount(queueAmount, queueDefault);
 
   // Withdraw
-  const matured = maturedShares(p, now);
+  const matured = now === undefined ? BigInt(0) : maturedShares(p, now);
   const withdraw = parseAmount(withdrawAmount, matured);
 
   // Harvest
@@ -347,7 +348,7 @@ const PositionCard: React.FC<{ state: BackstopManagerState; position: ManagerPos
           {p.q4w.map((q, i) => (
             <Typography key={i} variant="body2" sx={{ color: theme.palette.text.secondary }}>
               {fmt(q.amount)} shares queued:{' '}
-              {q.exp <= BigInt(now)
+              {now !== undefined && q.exp <= BigInt(now)
                 ? 'ready to withdraw'
                 : `ready ${new Date(Number(q.exp) * 1000).toLocaleString()}`}
             </Typography>
@@ -584,6 +585,40 @@ const PositionCard: React.FC<{ state: BackstopManagerState; position: ManagerPos
   );
 };
 
+const ManagerIdInput: React.FC<{
+  managerId: string;
+  onSelect: (id: string) => void;
+}> = ({ managerId, onSelect }) => {
+  const theme = useTheme();
+  const [idInput, setIdInput] = useState(managerId);
+
+  return (
+    <Box
+      component="form"
+      onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        const nextId = idInput.trim();
+        if (isContractId(nextId)) onSelect(nextId);
+      }}
+      sx={{
+        display: 'flex',
+        flexGrow: 1,
+        padding: '3px 12px',
+        borderRadius: '5px',
+        backgroundColor: theme.palette.accent.main,
+      }}
+    >
+      <Input
+        value={idInput}
+        onChange={(event) => setIdInput(event.target.value)}
+        placeholder="Paste your backstop manager contract ID (C...) and press Enter"
+        disableUnderline
+        fullWidth
+      />
+    </Box>
+  );
+};
+
 const ManagerPage: NextPage = () => {
   const router = useRouter();
   const theme = useTheme();
@@ -591,8 +626,6 @@ const ManagerPage: NextPage = () => {
   const queryId = typeof router.query.id === 'string' ? router.query.id : '';
   const { savedManagers, saveManager, forgetManager } = useSavedBackstopManagers();
   const managerId = queryId !== '' ? queryId : savedManagers[0] ?? '';
-  const [idInput, setIdInput] = useState(managerId);
-  useEffect(() => setIdInput(managerId), [managerId]);
 
   const {
     data: state,
@@ -648,28 +681,7 @@ const ManagerPage: NextPage = () => {
             ))}
           </Select>
         )}
-        <Box
-          component="form"
-          onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
-            e.preventDefault();
-            if (isContractId(idInput.trim())) selectId(idInput.trim());
-          }}
-          sx={{
-            display: 'flex',
-            flexGrow: 1,
-            padding: '3px 12px',
-            borderRadius: '5px',
-            backgroundColor: theme.palette.accent.main,
-          }}
-        >
-          <Input
-            value={idInput}
-            onChange={(e) => setIdInput(e.target.value)}
-            placeholder="Paste your backstop manager contract ID (C...) and press Enter"
-            disableUnderline
-            fullWidth
-          />
-        </Box>
+        <ManagerIdInput key={managerId} managerId={managerId} onSelect={selectId} />
         {savedManagers.includes(managerId) && (
           <Tooltip title="Remove this contract from the list saved in this browser">
             <OpaqueButton

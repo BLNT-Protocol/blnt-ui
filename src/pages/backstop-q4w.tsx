@@ -41,6 +41,7 @@ const BackstopQ4W: NextPage = () => {
   if (poolMeta?.version === Version.V3) {
     return (
       <BackstopV3Action
+        key={`${poolMeta.id}-${parseBackstopTier(router.query.tier)}-q4w`}
         poolMeta={poolMeta}
         tier={parseBackstopTier(router.query.tier)}
         type="q4w"

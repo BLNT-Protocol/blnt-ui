@@ -200,7 +200,12 @@ const Withdraw: NextPage = () => {
         </Section>
       </Row>
       <Row>
-        <WithdrawAnvil poolId={safePoolId} assetId={safeAssetId} isCollateral={showCollateral} />
+        <WithdrawAnvil
+          key={`${safePoolId}-${safeAssetId}-${showCollateral ? 'collateral' : 'supplied'}`}
+          poolId={safePoolId}
+          assetId={safeAssetId}
+          isCollateral={showCollateral}
+        />
       </Row>
     </>
   );

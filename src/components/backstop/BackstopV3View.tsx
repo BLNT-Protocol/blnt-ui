@@ -25,6 +25,7 @@ import {
   useSimulateOperation,
   useTokenBalance,
 } from '../../hooks/api';
+import { useCurrentTimestamp } from '../../hooks/time';
 import { PoolMeta } from '../../hooks/types';
 import theme from '../../theme';
 import {
@@ -208,7 +209,8 @@ const V3TierCard: React.FC<V3TierCardProps> = ({
   const userBalance = user?.balance(tier);
   const userTokens = userBalance ? tierPool.sharesToTokens(userBalance.shares) : BigInt(0);
   const queue = userBalance?.q4w ?? [];
-  const now = BigInt(Math.floor(Date.now() / 1000));
+  const timestamp = useCurrentTimestamp();
+  const now = BigInt(timestamp ?? 0);
   const unlockedShares = queue.reduce(
     (total, item) => (item.exp <= now ? total + item.amount : total),
     BigInt(0)

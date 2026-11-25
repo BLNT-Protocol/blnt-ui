@@ -2,10 +2,10 @@ import { BackstopContractV1, PoolBackstopActionArgs, Q4W } from '@blend-capital/
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { Box, CircularProgress, SxProps, Theme, Tooltip, Typography } from '@mui/material';
 import { rpc } from '@stellar/stellar-sdk';
-import { useEffect, useState } from 'react';
 import { useSettings, ViewType } from '../../contexts';
 import { useWallet } from '../../contexts/wallet';
 import { usePoolMeta, useSimulateOperation } from '../../hooks/api';
+import { useCountdownTimestamp } from '../../hooks/time';
 import theme from '../../theme';
 import { toBalance, toTimeSpan } from '../../utils/formatter';
 import { BACKSTOP_IDS, isV2Contracts, Version } from '../../utils/version';
@@ -50,22 +50,15 @@ export const BackstopQueueItem: React.FC<BackstopQueueItemProps> = ({
 
   const TOTAL_QUEUE_TIME_SECONDS = version === Version.V1 ? 21 * 24 * 60 * 60 : 17 * 24 * 60 * 60;
 
-  const [timeLeft, setTimeLeft] = useState<number>(
-    Math.max(0, Number(q4w.exp) - Math.floor(Date.now() / 1000))
-  );
-  const timeWaitedPercentage = Math.min(1, 1 - timeLeft / TOTAL_QUEUE_TIME_SECONDS);
-
-  useEffect(() => {
-    const timeInterval =
-      Number(q4w.exp) - Math.floor(Date.now() / 1000) > 24 * 60 * 60 ? 60 * 1000 : 1000;
-    const refreshInterval = setInterval(() => {
-      setTimeLeft(Math.max(0, Number(q4w.exp) - Math.floor(Date.now() / 1000)));
-    }, timeInterval);
-    return () => clearInterval(refreshInterval);
-  }, [q4w]);
+  const now = useCountdownTimestamp(Number(q4w.exp));
+  const timeLeft =
+    q4w.exp === BigInt(0) ? 0 : now === undefined ? undefined : Math.max(0, Number(q4w.exp) - now);
+  const timeWaitedPercentage =
+    timeLeft === undefined ? 0 : Math.min(1, 1 - timeLeft / TOTAL_QUEUE_TIME_SECONDS);
 
   const handleClick = async () => {
     if (connected && poolMeta) {
+      if (timeLeft === undefined) return;
       if (timeLeft > 0) {
         await backstopDequeueWithdrawal(poolMeta, actionArgs, false);
       } else {
@@ -111,10 +104,10 @@ export const BackstopQueueItem: React.FC<BackstopQueueItemProps> = ({
             <OpaqueButton
               onClick={() => handleClick()}
               palette={theme.palette.positive}
-              disabled={!enabled}
+              disabled={!enabled || timeLeft === undefined}
               sx={{ width: '100%' }}
             >
-              {timeLeft > 0 ? 'Unqueue' : 'Withdraw'}
+              {timeLeft === undefined ? 'Loading...' : timeLeft > 0 ? 'Unqueue' : 'Withdraw'}
             </OpaqueButton>
           )}
         </Box>
@@ -123,10 +116,10 @@ export const BackstopQueueItem: React.FC<BackstopQueueItemProps> = ({
       <OpaqueButton
         onClick={() => handleClick()}
         palette={theme.palette.positive}
-        disabled={!enabled}
+        disabled={!enabled || timeLeft === undefined}
         sx={sx}
       >
-        {timeLeft > 0 ? 'Unqueue' : 'Withdraw'}
+        {timeLeft === undefined ? 'Loading...' : timeLeft > 0 ? 'Unqueue' : 'Withdraw'}
       </OpaqueButton>
     );
   };
@@ -135,7 +128,7 @@ export const BackstopQueueItem: React.FC<BackstopQueueItemProps> = ({
     <>
       <Row>
         <Box sx={{ margin: '6px', padding: '6px', display: 'flex', alignItems: 'center' }}>
-          {timeLeft > 0 ? (
+          {timeLeft === undefined || timeLeft > 0 ? (
             <Box
               sx={{
                 position: 'relative',
@@ -190,7 +183,11 @@ export const BackstopQueueItem: React.FC<BackstopQueueItemProps> = ({
               </Typography>
             </Box>
             <Typography variant="h4" sx={{ marginRight: '6px' }}>
-              {timeLeft > 0 ? toTimeSpan(timeLeft) : 'Unlocked'}
+              {timeLeft === undefined
+                ? 'Loading...'
+                : timeLeft > 0
+                ? toTimeSpan(timeLeft)
+                : 'Unlocked'}
             </Typography>
           </Box>
         </Box>

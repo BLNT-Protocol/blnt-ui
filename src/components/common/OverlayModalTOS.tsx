@@ -1,26 +1,48 @@
 import { Box, Typography, useTheme } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { OpaqueButton } from './OpaqueButton';
 import { TOS } from './TOS';
 
 const TOS_VERSION = '2026-11-05';
+const TOS_STORAGE_KEY = 'blntTosVersion';
+
+function subscribeToTosVersion(onStoreChange: () => void) {
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === TOS_STORAGE_KEY) onStoreChange();
+  };
+  window.addEventListener('storage', handleStorage);
+  return () => window.removeEventListener('storage', handleStorage);
+}
+
+function getTosVersionSnapshot() {
+  return localStorage.getItem(TOS_STORAGE_KEY) === TOS_VERSION;
+}
+
+function getServerTosVersionSnapshot(): undefined {
+  return undefined;
+}
 
 export const OverlayModalTOS: React.FC = () => {
   const theme = useTheme();
 
-  const [showTosModal, setShowTosModal] = useState<boolean | undefined>(undefined);
+  const hasAcceptedStoredVersion = useSyncExternalStore<boolean | undefined>(
+    subscribeToTosVersion,
+    getTosVersionSnapshot,
+    getServerTosVersionSnapshot
+  );
+  const [acknowledged, setAcknowledged] = useState(false);
+  const showTosModal = acknowledged
+    ? false
+    : hasAcceptedStoredVersion === undefined
+    ? undefined
+    : !hasAcceptedStoredVersion;
   const handleAcknowledge = () => {
-    localStorage.setItem('blntTosVersion', TOS_VERSION);
-    setShowTosModal(false);
+    localStorage.setItem(TOS_STORAGE_KEY, TOS_VERSION);
+    setAcknowledged(true);
   };
   const handleCancel = () => {
     window.location.replace('https://github.com/blnt-protocol');
   };
-  useEffect(() => {
-    const acceptedVersion = localStorage.getItem('blntTosVersion');
-    setShowTosModal(acceptedVersion !== TOS_VERSION);
-  }, []);
-
   return (
     <>
       {showTosModal !== false && (

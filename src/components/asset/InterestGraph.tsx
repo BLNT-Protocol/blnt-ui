@@ -1,6 +1,6 @@
 import { FixedMath, Reserve } from '@blend-capital/blend-sdk';
 import { Box, Typography, useTheme } from '@mui/material';
-import { axisClasses, ChartsReferenceLine } from '@mui/x-charts';
+import { axisClasses, ChartsReferenceLine, type AxisValueFormatterContext } from '@mui/x-charts';
 import { LineChart } from '@mui/x-charts/LineChart';
 import { useState } from 'react';
 import { toPercentage } from '../../utils/formatter';
@@ -83,7 +83,7 @@ export const InterestGraph: React.FC<InterestGraphProps> = ({ reserve, backstopT
           {
             data: dataPoints.map((point) => point.util),
             label: 'Utilization rate',
-            valueFormatter: (element, context) => {
+            valueFormatter: (element: number, context: AxisValueFormatterContext<'linear'>) => {
               if (context.location === 'tooltip') {
                 if (element === currentUtil) {
                   return `Utilization ${toPercentage(element, 2)} (Current)`;
@@ -100,21 +100,19 @@ export const InterestGraph: React.FC<InterestGraphProps> = ({ reserve, backstopT
             min: 0,
             max: dataPoints.length > 0 ? dataPoints[dataPoints.length - 1].util : 1,
             tickNumber: 4,
+            position: 'bottom',
           },
         ]}
         yAxis={[
           {
             label: 'Borrow APR (%)',
-            valueFormatter: (element) => `${element * 100}`,
+            valueFormatter: (element: number) => `${element * 100}`,
             tickNumber: 5,
             min: 0,
             max: maxAPR,
+            position: 'right',
           },
         ]}
-        leftAxis={null}
-        bottomAxis={{}}
-        topAxis={null}
-        rightAxis={{}}
         series={[
           {
             id: 'CurrentAPR',
@@ -153,31 +151,8 @@ export const InterestGraph: React.FC<InterestGraphProps> = ({ reserve, backstopT
         ]}
         slotProps={{
           legend: {
-            seriesToDisplay: [
-              {
-                id: 'CurrentAPR',
-                seriesId: 'CurrentAPR',
-                color: theme.palette.borrow.main,
-                label: 'Current APR',
-              },
-              {
-                id: 'DefaultAPR',
-                color: theme.palette.text.secondary,
-                label: 'Base APR',
-              },
-              {
-                id: 'CurrentUtil',
-                color: theme.palette.positive.main,
-                label: 'Current Utilization',
-              },
-            ],
-            position: { horizontal: 'left', vertical: 'top' },
-            labelStyle: {
-              fontSize: 11,
-            },
-            itemMarkWidth: 10,
-            itemMarkHeight: 10,
-            direction: 'column',
+            position: { horizontal: 'start', vertical: 'top' },
+            direction: 'vertical',
           },
         }}
         margin={{
@@ -199,6 +174,8 @@ export const InterestGraph: React.FC<InterestGraphProps> = ({ reserve, backstopT
         </defs>
         <ChartsReferenceLine
           x={currentUtil}
+          label="Current utilization"
+          labelAlign="end"
           lineStyle={{ stroke: theme.palette.positive.main, strokeDasharray: 3 }}
         />
       </LineChart>

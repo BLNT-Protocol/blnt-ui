@@ -64,6 +64,25 @@ export const BackstopDepositAnvil: React.FC<PoolComponentProps> = ({ poolId }) =
   const loading = isLoading || loadingEstimate;
   const decimals = 7;
 
+  const handleSubmitTransaction = async (sim: boolean) => {
+    if (toDeposit && connected && poolMeta) {
+      const depositArgs: PoolBackstopActionArgs = {
+        from: walletAddress,
+        pool_address: poolId,
+        amount: scaleInputToBigInt(toDeposit, 7),
+      };
+      const response = await backstopDeposit(poolMeta, depositArgs, sim);
+      if (response) {
+        setSimResponse(response);
+        if (rpc.Api.isSimulationSuccess(response)) {
+          const result = parseResult(response, BackstopContractV1.parsers.deposit);
+          setParsedSimResult(result);
+        }
+      }
+    }
+    setLoadingEstimate(false);
+  };
+
   useDebouncedState(toDeposit, RPC_DEBOUNCE_DELAY, txType, async () => {
     setSimResponse(undefined);
     await handleSubmitTransaction(true);
@@ -100,25 +119,6 @@ export const BackstopDepositAnvil: React.FC<PoolComponentProps> = ({ poolId }) =
 
   const handleDepositMax = () => {
     setToDeposit(bigintToInput(lpTokenBalance, 7));
-  };
-
-  const handleSubmitTransaction = async (sim: boolean) => {
-    if (toDeposit && connected && poolMeta) {
-      const depositArgs: PoolBackstopActionArgs = {
-        from: walletAddress,
-        pool_address: poolId,
-        amount: scaleInputToBigInt(toDeposit, 7),
-      };
-      const response = await backstopDeposit(poolMeta, depositArgs, sim);
-      if (response) {
-        setSimResponse(response);
-        if (rpc.Api.isSimulationSuccess(response)) {
-          const result = parseResult(response, BackstopContractV1.parsers.deposit);
-          setParsedSimResult(result);
-        }
-      }
-    }
-    setLoadingEstimate(false);
   };
 
   return (
