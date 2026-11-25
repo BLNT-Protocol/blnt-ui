@@ -88,7 +88,8 @@ async function loadTotalSupply(
   assetCode: string,
   issuer: string
 ): Promise<bigint> {
-  const url = new URL('/assets', horizonUrl);
+  const horizonBaseUrl = horizonUrl.endsWith('/') ? horizonUrl : `${horizonUrl}/`;
+  const url = new URL('assets', horizonBaseUrl);
   url.searchParams.set('asset_code', assetCode);
   url.searchParams.set('asset_issuer', issuer);
   const response = await fetch(url.toString());

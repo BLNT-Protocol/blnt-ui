@@ -248,6 +248,9 @@ async function view<T>(stellarRpc: rpc.Server, network: Network, op: xdr.Operati
   if (rpc.Api.isSimulationRestore(response)) {
     throw new BackstopManagerRestoreRequiredError(response);
   }
+  if (rpc.Api.isSimulationError(response)) {
+    throw new Error(response.error);
+  }
   if (!rpc.Api.isSimulationSuccess(response) || response.result?.retval === undefined) {
     throw new Error('Backstop manager view call failed');
   }
@@ -279,12 +282,19 @@ export async function loadTokenBalance(
   holder: string
 ): Promise<bigint> {
   const stellarRpc = new rpc.Server(network.rpc, network.opts);
-  const balance = await view<bigint>(
-    stellarRpc,
-    network,
-    new Contract(token).call('balance', addr(holder))
-  );
-  return BigInt(balance);
+  try {
+    const balance = await view<bigint>(
+      stellarRpc,
+      network,
+      new Contract(token).call('balance', addr(holder))
+    );
+    return BigInt(balance);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('Error(Contract, #13)')) {
+      return BigInt(0);
+    }
+    throw error;
+  }
 }
 
 export async function loadBackstopManagerState(
@@ -337,7 +347,6 @@ export async function loadBackstopManagerState(
   ]);
   if (
     EXPECTED_BACKSTOP_ID === '' ||
-    backstops.length === 0 ||
     backstops.some((backstop) => backstop !== EXPECTED_BACKSTOP_ID)
   ) {
     throw new Error('Backstop manager is not bound to the configured V3 backstop');
