@@ -24,6 +24,8 @@ export const AuctionBackstopTokenHeader: React.FC<AuctionBackstopTokenHeaderProp
       ? BackstopTierV3.FirstLoss
       : token === process.env.NEXT_PUBLIC_BLND_USDC_COMET
       ? BackstopTierV3.SecondLoss
+      : token === process.env.NEXT_PUBLIC_USDC_TOKEN
+      ? BackstopTierV3.ThirdLoss
       : undefined;
 
   return (
