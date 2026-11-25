@@ -43,12 +43,12 @@ export interface BlntStatsConfig {
 
 export interface BlntProtocolStats {
   blntPrice: number;
-  totalSupply: bigint;
+  totalSupply: bigint | undefined;
   backfillBalance: bigint;
   lockupBackfillBalance: bigint;
   backstopBlntBalance: bigint;
-  circulatingSupply: bigint;
-  marketCap: number;
+  circulatingSupply: bigint | undefined;
+  marketCap: number | undefined;
   totalSupplied: number;
   totalBorrowed: number;
   totalBackstop: number;
@@ -76,6 +76,11 @@ interface HorizonAssetResponse {
   _embedded?: { records?: HorizonAssetRecord[] };
 }
 
+interface HorizonSupplySnapshot {
+  total: bigint;
+  contracts: bigint;
+}
+
 function decimalToRaw(value: string | undefined): bigint {
   if (value === undefined) return BigInt(0);
   const match = /^(\d+)(?:\.(\d{0,7}))?$/.exec(value);
@@ -83,11 +88,11 @@ function decimalToRaw(value: string | undefined): bigint {
   return BigInt(match[1]) * BigInt(10 ** TOKEN_DECIMALS) + BigInt((match[2] ?? '').padEnd(7, '0'));
 }
 
-async function loadTotalSupply(
+async function loadHorizonSupply(
   horizonUrl: string,
   assetCode: string,
   issuer: string
-): Promise<bigint> {
+): Promise<HorizonSupplySnapshot> {
   const horizonBaseUrl = horizonUrl.endsWith('/') ? horizonUrl : `${horizonUrl}/`;
   const url = new URL('assets', horizonBaseUrl);
   url.searchParams.set('asset_code', assetCode);
@@ -104,12 +109,15 @@ async function loadTotalSupply(
     (total, balance) => total + decimalToRaw(balance),
     BigInt(0)
   );
-  return (
-    accountBalances +
-    decimalToRaw(record.claimable_balances_amount) +
-    decimalToRaw(record.liquidity_pools_amount) +
-    decimalToRaw(record.contracts_amount)
-  );
+  const contractBalances = decimalToRaw(record.contracts_amount);
+  return {
+    total:
+      accountBalances +
+      decimalToRaw(record.claimable_balances_amount) +
+      decimalToRaw(record.liquidity_pools_amount) +
+      contractBalances,
+    contracts: contractBalances,
+  };
 }
 
 async function loadTokenBalance(
@@ -208,7 +216,7 @@ export async function loadBlntProtocolStats(
 
   const [
     comet,
-    totalSupply,
+    horizonSupply,
     backfillBalance,
     lockupBackfillBalance,
     backstopBlntBalance,
@@ -220,7 +228,7 @@ export async function loadBlntProtocolStats(
     poolStats,
   ] = await Promise.all([
     BackstopToken.load(network, config.blntUsdcCometId, config.blntTokenId, config.usdcTokenId),
-    loadTotalSupply(network.horizonUrl, 'BLNT', config.blntIssuer),
+    loadHorizonSupply(network.horizonUrl, 'BLNT', config.blntIssuer),
     loadTokenBalance(network, config.blntTokenId, config.backfillId),
     loadTokenBalance(network, config.blntTokenId, config.lockupBackfillId),
     loadTokenBalance(network, config.blntTokenId, config.backstopId),
@@ -244,7 +252,14 @@ export async function loadBlntProtocolStats(
   // therefore represents one fifth of pool value and its BLNT side four fifths.
   const blntPrice = (Number(comet.usdc) * 4) / Number(comet.blnd);
   const excludedSupply = backfillBalance + lockupBackfillBalance + backstopBlntBalance;
-  const circulatingSupply = totalSupply > excludedSupply ? totalSupply - excludedSupply : BigInt(0);
+  const totalSupply =
+    excludedSupply > horizonSupply.contracts ? undefined : horizonSupply.total;
+  const circulatingSupply =
+    totalSupply === undefined
+      ? undefined
+      : totalSupply > excludedSupply
+      ? totalSupply - excludedSupply
+      : BigInt(0);
   const totals = poolStats.reduce(
     (result, pool) => ({
       supplied: result.supplied + pool.supplied,
@@ -272,7 +287,10 @@ export async function loadBlntProtocolStats(
     lockupBackfillBalance,
     backstopBlntBalance,
     circulatingSupply,
-    marketCap: FixedMath.toFloat(circulatingSupply, TOKEN_DECIMALS) * blntPrice,
+    marketCap:
+      circulatingSupply === undefined
+        ? undefined
+        : FixedMath.toFloat(circulatingSupply, TOKEN_DECIMALS) * blntPrice,
     totalSupplied: totals.supplied,
     totalBorrowed: totals.borrowed,
     totalBackstop: totals.backstop,

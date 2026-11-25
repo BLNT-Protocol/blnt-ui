@@ -178,13 +178,21 @@ const StatsPage: NextPage = () => {
             <StatCard
               label="Circulating supply"
               value={formatBlnt(stats.circulatingSupply)}
-              detail="Total BLNT supply minus BLNT held by backfill contracts or awaiting emission claims"
+              detail={
+                stats.circulatingSupply === undefined
+                  ? 'Unavailable because Horizon omits known contract-held BLNT'
+                  : 'Total BLNT supply minus BLNT held by backfill contracts or awaiting emission claims'
+              }
               color={theme.palette.primary.main}
             />
             <StatCard
               label="Market cap"
               value={formatUsd(stats.marketCap)}
-              detail="BLNT price × circulating supply"
+              detail={
+                stats.marketCap === undefined
+                  ? 'Unavailable until circulating supply can be reconciled'
+                  : 'BLNT price × circulating supply'
+              }
               color={theme.palette.primary.main}
             />
             <StatCard
